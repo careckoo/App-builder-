@@ -1,0 +1,540 @@
+<meta charset="utf-8">
+<title>Masroofi Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a working iPhone on one side, the "bank texts you" simulator on the other; stacks on phones. */
+:root {
+  --bg: #eef3f2;
+  --surface: #ffffff;
+  --surface-2: #f4f8f7;
+  --ink: #12211f;
+  --muted: #5b6e6b;
+  --line: #d5e0de;
+  --accent: #0b8b7a;
+  --accent-ink: #ffffff;
+  --accent-soft: #d8efeb;
+  --sms: #e9e9eb;
+  --sms-ink: #111;
+  --good: #23a26b;
+  --warn: #d98a12;
+  --bad: #d4403c;
+  --phone-frame: #1b2523;
+  --font-display: "Readex Pro", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans Arabic", "Readex Pro", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0b1312; --surface: #121c1b; --surface-2: #192523; --ink: #e6efed; --muted: #93a6a3; --line: #263533;
+  --accent: #2cc0aa; --accent-ink: #04201b; --accent-soft: #123b35; --sms: #2a2f2e; --sms-ink: #f2f2f2;
+  --good: #3cc684; --warn: #f0a83a; --bad: #f06a5f; --phone-frame: #000; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0b1312; --surface: #121c1b; --surface-2: #192523; --ink: #e6efed; --muted: #93a6a3; --line: #263533;
+  --accent: #2cc0aa; --accent-ink: #04201b; --accent-soft: #123b35; --sms: #2a2f2e; --sms-ink: #f2f2f2;
+  --good: #3cc684; --warn: #f0a83a; --bad: #f06a5f; --phone-frame: #000; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 56px; }
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 40px; }
+header.top { display: flex; flex-wrap: wrap; gap: 16px; align-items: end; justify-content: space-between; }
+.brand h1 { font-family: var(--font-display); font-size: clamp(30px, 5vw, 46px); line-height: 1.05; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.brand h1 span { color: var(--accent); }
+.brand p { margin: 8px 0 0; color: var(--muted); max-width: 60ch; }
+.lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--surface); }
+.lang button { font: 600 13px var(--font-body); border: 0; background: transparent; color: var(--muted); padding: 7px 14px; border-radius: 999px; cursor: pointer; }
+.lang button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.stage { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 48px; align-items: start; }
+@media (max-width: 860px) { .stage { grid-template-columns: minmax(0, 1fr); justify-items: center; } .side { width: 100%; } }
+
+/* ---------- iPhone ---------- */
+.phone { width: 360px; max-width: 100%; aspect-ratio: 360 / 760; background: var(--phone-frame); border-radius: 54px; padding: 12px; position: sticky; top: 24px; box-shadow: 0 30px 60px -30px rgba(10,40,35,.45); }
+.screen { position: relative; height: 100%; border-radius: 43px; overflow: hidden; background: var(--surface-2); display: flex; flex-direction: column; }
+.statusbar { display: flex; justify-content: space-between; padding: 14px 28px 4px; font: 600 14px var(--font-display); direction: ltr; }
+.island { position: absolute; top: 10px; left: 50%; translate: -50% 0; width: 112px; height: 32px; background: #000; border-radius: 20px; z-index: 5; }
+.view { flex: 1; overflow-y: auto; padding: 8px 18px 16px; scrollbar-width: none; }
+.view::-webkit-scrollbar { display: none; }
+.navtitle { font: 700 30px var(--font-display); margin: 6px 0 12px; }
+.ringbox { display: grid; place-items: center; margin: 4px 0 14px; position: relative; }
+.ringbox svg { width: 220px; height: 220px; }
+.ringlabel { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 2px; }
+.ringlabel small { color: var(--muted); font-size: 12px; }
+.ringlabel strong { font: 700 34px var(--font-display); font-variant-numeric: tabular-nums; direction: ltr; }
+.ringlabel em { font-style: normal; font-size: 12px; font-weight: 600; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+.tile { background: var(--surface); border-radius: 16px; padding: 12px 14px; }
+.tile small { display: block; color: var(--muted); font-size: 11.5px; }
+.tile b { font: 600 18px var(--font-display); font-variant-numeric: tabular-nums; }
+h3.sec { font: 600 17px var(--font-display); margin: 0 0 8px; }
+.list { background: var(--surface); border-radius: 16px; padding: 4px 12px; }
+.row { display: grid; grid-template-columns: 36px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.row:last-child { border-bottom: 0; }
+.row.new { animation: flash 1.6s ease; }
+@keyframes flash { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
+.ico { width: 36px; height: 36px; border-radius: 50%; background: var(--accent-soft); display: grid; place-items: center; font-size: 17px; }
+.row .name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .meta { font-size: 11.5px; color: var(--muted); }
+.row .amt { text-align: end; font: 600 14px var(--font-display); font-variant-numeric: tabular-nums; direction: ltr; }
+.row .amt.in { color: var(--good); }
+.row .amt small { display: block; font: 400 10.5px var(--font-body); color: var(--muted); }
+.empty { color: var(--muted); font-size: 13px; padding: 14px 4px; text-align: center; }
+.daylabel { font-size: 12px; color: var(--muted); margin: 14px 4px 6px; display: flex; justify-content: space-between; }
+.daylabel span:last-child { direction: ltr; font-variant-numeric: tabular-nums; }
+.bud { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.bud:last-child { border-bottom: 0; }
+.bud .top { display: flex; justify-content: space-between; font-size: 13.5px; gap: 8px; }
+.bud .top span:last-child { color: var(--muted); direction: ltr; font-variant-numeric: tabular-nums; }
+.bar { height: 6px; background: var(--line); border-radius: 6px; margin-top: 7px; overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 6px; background: var(--accent); transition: width .6s ease; }
+.bill { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; gap: 8px; }
+.bill:last-child { border-bottom: 0; }
+.bill .chk { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--line); display: inline-grid; place-items: center; font-size: 11px; color: var(--accent-ink); flex: none; }
+.bill .chk.on { background: var(--good); border-color: var(--good); }
+.bill > span:first-child { display: flex; gap: 10px; align-items: center; }
+.bill > span:last-child { direction: ltr; font-variant-numeric: tabular-nums; }
+.step { display: grid; grid-template-columns: 26px 1fr; gap: 10px; padding: 9px 0; font-size: 13.5px; border-bottom: 1px solid var(--line); }
+.step:last-child { border-bottom: 0; }
+.step b { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-size: 13px; }
+.tabbar { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface); border-top: 1px solid var(--line); padding: 8px 6px 22px; }
+.tabbar button { border: 0; background: none; color: var(--muted); font: 500 10.5px var(--font-body); display: grid; gap: 2px; justify-items: center; cursor: pointer; padding: 4px; border-radius: 10px; }
+.tabbar button svg { width: 22px; height: 22px; }
+.tabbar button[aria-selected="true"] { color: var(--accent); }
+
+/* Notifications sliding down from the top of the phone */
+.notes { position: absolute; top: 50px; left: 10px; right: 10px; display: grid; gap: 8px; z-index: 6; pointer-events: none; }
+.note { background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: 20px; padding: 10px 14px; box-shadow: 0 8px 24px -10px rgba(0,0,0,.35); font-size: 12.5px; animation: drop .45s cubic-bezier(.2,.9,.3,1.2); }
+.note header { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+.note header b { color: var(--ink); }
+.note p { margin: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.note.out { animation: lift .4s ease forwards; }
+@keyframes drop { from { transform: translateY(-30px); opacity: 0; } }
+@keyframes lift { to { transform: translateY(-30px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .note, .note.out, .row.new { animation: none; } .bar i { transition: none; } }
+
+/* ---------- Simulator side ---------- */
+.side { display: grid; gap: 28px; min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 22px; }
+.card h2 { font: 600 20px var(--font-display); margin: 0 0 4px; text-wrap: balance; }
+.card > p { margin: 0 0 16px; color: var(--muted); }
+.eyebrow { font: 600 11px var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+.samples { display: grid; gap: 8px; }
+.sample { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 12px; align-items: start; text-align: start; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); border-radius: 14px; padding: 10px 12px; cursor: pointer; font: inherit; }
+.sample:hover { border-color: var(--accent); }
+.sample .from { font: 600 11px var(--font-body); background: var(--accent-soft); color: var(--accent); padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.sample .txt { font: 400 12.5px/1.5 var(--font-mono); color: var(--muted); overflow-wrap: anywhere; }
+.sample[data-dir="rtl"] .txt { font-family: var(--font-body); font-size: 13.5px; }
+.custom { display: grid; gap: 10px; margin-top: 16px; }
+.custom label { font-size: 13px; font-weight: 600; }
+.custom textarea, .custom input { width: 100%; font: 13px/1.5 var(--font-mono); color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; resize: vertical; }
+.custom .rowx { display: flex; gap: 10px; flex-wrap: wrap; }
+.custom .rowx input { flex: 1 1 140px; width: auto; }
+.btn { font: 600 14px var(--font-body); border: 0; border-radius: 12px; padding: 10px 18px; cursor: pointer; background: var(--accent); color: var(--accent-ink); }
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+.parsed { margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.parsed div { background: var(--surface-2); border-radius: 12px; padding: 8px 10px; min-width: 0; }
+.parsed small { display: block; font-size: 11px; color: var(--muted); }
+.parsed b { font: 600 14px var(--font-display); overflow-wrap: anywhere; }
+.verdict { margin-top: 10px; font-size: 13px; font-weight: 600; }
+.verdict.skip { color: var(--warn); }
+
+.flow { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
+@media (max-width: 620px) { .flow { grid-template-columns: minmax(0,1fr); } }
+.flow div { background: var(--surface-2); border-radius: 14px; padding: 14px; }
+.flow b { display: block; font: 600 15px var(--font-display); margin-bottom: 4px; }
+.flow p { margin: 0; font-size: 13.5px; color: var(--muted); }
+
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 13.5px; }
+th, td { text-align: start; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 12px var(--font-body); color: var(--muted); letter-spacing: .04em; }
+td:first-child { font-weight: 600; }
+.yes { color: var(--good); font-weight: 600; }
+.no { color: var(--muted); }
+.us { background: var(--accent-soft); }
+.note-small { font-size: 12.5px; color: var(--muted); margin-top: 12px; }
+</style>
+
+<div class="wrap" id="app">
+  <header class="top">
+    <div class="brand">
+      <h1 data-i18n="heroTitle">Masroofi <span>مصروفي</span></h1>
+      <p data-i18n="heroSub">Your UAE bank already texts you every purchase. Masroofi reads those messages and runs your budget, so you never type a number.</p>
+    </div>
+    <div class="lang" role="group" aria-label="Language">
+      <button id="lang-en" aria-pressed="true">English</button>
+      <button id="lang-ar" aria-pressed="false">العربية</button>
+    </div>
+  </header>
+
+  <section class="stage">
+    <div class="phone" aria-label="iPhone prototype">
+      <div class="screen" id="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span>●●● 5G</span></div>
+        <div class="notes" id="notes" aria-live="polite"></div>
+        <div class="view" id="view"></div>
+        <nav class="tabbar" role="tablist" id="tabbar"></nav>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <div class="eyebrow" data-i18n="tryEyebrow">Try it</div>
+        <h2 data-i18n="tryTitle">Send the phone a bank SMS</h2>
+        <p data-i18n="trySub">Tap a message. It arrives like a real SMS, the Shortcuts automation hands it to Masroofi, and the phone updates. Sample data, not real accounts.</p>
+        <div class="samples" id="samples"></div>
+        <div class="custom">
+          <label for="custom-msg" data-i18n="pasteLabel">Or paste your own bank message (stays in this browser)</label>
+          <textarea id="custom-msg" dir="auto" rows="3" placeholder="Card ending 1234 was used for AED 45.50 at ..."></textarea>
+          <div class="rowx">
+            <input id="custom-sender" placeholder="Sender, e.g. ADCB" aria-label="Sender">
+            <button class="btn" id="send-custom" data-i18n="send">Send to phone</button>
+          </div>
+          <div id="preview"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="eyebrow" data-i18n="howEyebrow">How it works without typing</div>
+        <h2 data-i18n="howTitle">One Shortcuts automation, set up once</h2>
+        <p data-i18n="howSub">iOS doesn't let any app read your SMS inbox. Apple's supported route is a Shortcuts automation that you approve per sender. After that it runs by itself in the background.</p>
+        <div class="flow">
+          <div><b data-i18n="f1t">1. Bank texts you</b><p data-i18n="f1">ADCB, FAB, Emirates NBD, ADIB, Liv, Wio and others send an alert for every card payment.</p></div>
+          <div><b data-i18n="f2t">2. Automation runs</b><p data-i18n="f2">“When I get a message from ADCB → Run immediately → Masroofi: Log bank message.”</p></div>
+          <div><b data-i18n="f3t">3. Masroofi updates</b><p data-i18n="f3">It reads amount, merchant, card and balance, picks a category, skips OTPs and duplicates, and refreshes the widget.</p></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="eyebrow" data-i18n="cmpEyebrow">What we took from each app</div>
+        <h2 data-i18n="cmpTitle">OutCap + Budget app, built for UAE banks</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th></th><th>OutCap</th><th>Budget app</th><th class="us">Masroofi</th></tr></thead>
+            <tbody id="cmp"></tbody>
+          </table>
+        </div>
+        <p class="note-small" data-i18n="cmpNote">Based on each app's App Store listing. OutCap reads Saudi bank SMS; Budget app relies on manual, voice, receipt and CSV entry.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script type="module">
+import { parse, categorize, CATEGORIES } from "./parser.js";
+
+// ---------- Text in both languages ----------
+const T = {
+  en: {
+    heroTitle: 'Masroofi <span>مصروفي</span>',
+    heroSub: "Your UAE bank already texts you every purchase. Masroofi reads those messages and runs your budget, so you never type a number.",
+    tryEyebrow: "Try it", tryTitle: "Send the phone a bank SMS",
+    trySub: "Tap a message. It arrives like a real SMS, the Shortcuts automation hands it to Masroofi, and the phone updates. Sample data, not real accounts.",
+    pasteLabel: "Or paste your own bank message (stays in this browser)", send: "Send to phone",
+    howEyebrow: "How it works without typing", howTitle: "One Shortcuts automation, set up once",
+    howSub: "iOS doesn't let any app read your SMS inbox. Apple's supported route is a Shortcuts automation that you approve per sender. After that it runs by itself in the background.",
+    f1t: "1. Bank texts you", f1: "ADCB, FAB, Emirates NBD, ADIB, Liv, Wio and others send an alert for every card payment.",
+    f2t: "2. Automation runs", f2: "“When I get a message from ADCB → Run immediately → Masroofi: Log bank message.”",
+    f3t: "3. Masroofi updates", f3: "It reads amount, merchant, card and balance, picks a category, skips OTPs and duplicates, and refreshes the widget.",
+    cmpEyebrow: "What we took from each app", cmpTitle: "OutCap + Budget app, built for UAE banks",
+    cmpNote: "Based on each app's App Store listing. OutCap reads Saudi bank SMS; Budget app relies on manual, voice, receipt and CSV entry.",
+    tabs: ["Today", "Activity", "Budgets", "Setup"],
+    safe: "Safe to spend today", leftPayday: "Left until payday", daysPayday: "Days to payday",
+    today: "Today", noSpend: "No spending yet today. Bank messages appear here by themselves.",
+    status: { relaxed: "You're doing great", onTrack: "On track", careful: "Go easy for the rest of today", over: "Over today — tomorrow adjusts" },
+    cycle: "This pay cycle", budgets: "Budgets", bills: "Fixed bills", of: "of",
+    setupTitle: "Connect your bank messages", setupSteps: [
+      "Open Shortcuts → Automation → New Automation (+).",
+      "Choose Message. Sender: ADCB, FAB, EmiratesNBD (as shown in Messages).",
+      "Choose Run Immediately → Next.",
+      "Add Masroofi “Log bank message” → Message: Shortcut Input.",
+      "Done. Your next card payment logs itself."],
+    privacy: "Everything stays on your iPhone. No bank logins, no server.",
+    now: "now", logged: "Left today", skipped: "Not a transaction, skipped", dup: "Already logged",
+    pAmount: "Amount", pType: "Type", pWhere: "Merchant", pCard: "Card", pCat: "Category", pBal: "Balance after",
+    kinds: { purchase: "Purchase", withdrawal: "ATM cash", transferOut: "Transfer out", income: "Income", refund: "Refund" },
+    willSkip: "Masroofi would skip this message (OTP, promo, declined, or no amount).",
+    cmpRows: [
+      ["Reads bank SMS automatically", "yes:Saudi banks", "no:Manual / AI import", "yes:UAE banks, Arabic + English"],
+      ["One daily “safe to spend” number", "yes:", "no:", "yes:Pay-cycle based"],
+      ["Category budgets", "yes:Pro", "yes:", "yes:"],
+      ["Fixed bills & BNPL (Tabby, Tamara)", "yes:", "yes:Subscriptions", "yes:Auto-ticked when paid"],
+      ["Arabic interface", "yes:", "yes:", "yes:Full RTL"],
+      ["Widgets & Siri", "yes:", "yes:", "yes:Home, Lock Screen, Siri"],
+      ["Learns your categories", "no:", "no:", "yes:Change once, applies always"],
+      ["Data stays on device", "yes:", "yes:iCloud sync", "yes:"]],
+  },
+  ar: {
+    heroTitle: 'مصروفي <span>Masroofi</span>',
+    heroSub: "بنكك في الإمارات يرسل لك رسالة مع كل عملية. مصروفي يقرأ هذه الرسائل ويدير ميزانيتك، بدون ما تكتب ولا رقم.",
+    tryEyebrow: "جرّبه", tryTitle: "أرسل للجوال رسالة من البنك",
+    trySub: "اضغط على رسالة. توصل مثل رسالة حقيقية، والأتمتة في تطبيق الاختصارات تسلّمها لمصروفي، والجوال يتحدّث. بيانات تجريبية وليست حسابات حقيقية.",
+    pasteLabel: "أو الصق رسالة من بنكك (تبقى في هذا المتصفح)", send: "أرسل للجوال",
+    howEyebrow: "كيف يشتغل بدون إدخال", howTitle: "أتمتة واحدة في الاختصارات، مرة وحدة",
+    howSub: "نظام iOS لا يسمح لأي تطبيق بقراءة صندوق الرسائل. الطريقة المعتمدة من Apple هي أتمتة في تطبيق الاختصارات توافق عليها لكل مرسل. بعدها تشتغل لحالها في الخلفية.",
+    f1t: "١. البنك يرسل لك", f1: "أبوظبي التجاري، أبوظبي الأول، الإمارات دبي الوطني، مصرف أبوظبي الإسلامي، ليف، ويو وغيرها ترسل تنبيه مع كل عملية.",
+    f2t: "٢. الأتمتة تشتغل", f2: "«عند وصول رسالة من ADCB ← تشغيل فوراً ← مصروفي: تسجيل رسالة البنك».",
+    f3t: "٣. مصروفي يتحدّث", f3: "يقرأ المبلغ والمتجر والبطاقة والرصيد، ويختار الفئة، ويتجاهل رموز التحقق والمكرر، ويحدّث الأداة.",
+    cmpEyebrow: "ماذا أخذنا من كل تطبيق", cmpTitle: "OutCap و Budget app، مصمم لبنوك الإمارات",
+    cmpNote: "حسب صفحة كل تطبيق في App Store. ‏OutCap يقرأ رسائل البنوك السعودية، و Budget app يعتمد على الإدخال اليدوي أو الصوتي أو الإيصالات أو ملفات CSV.",
+    tabs: ["اليوم", "الحركات", "الميزانيات", "الإعداد"],
+    safe: "تقدر تصرف اليوم", leftPayday: "المتبقي حتى الراتب", daysPayday: "أيام حتى الراتب",
+    today: "اليوم", noSpend: "لا مصاريف اليوم بعد. رسائل البنك تظهر هنا تلقائياً.",
+    status: { relaxed: "ممتاز، كمّل كذا", onTrack: "على المسار", careful: "خفّف باقي اليوم", over: "تجاوزت اليوم — بكرة يتعدّل" },
+    cycle: "دورة الراتب الحالية", budgets: "الميزانيات", bills: "الفواتير الثابتة", of: "من",
+    setupTitle: "اربط رسائل بنكك", setupSteps: [
+      "افتح الاختصارات ← الأتمتة ← أتمتة جديدة (+).",
+      "اختر «رسالة». المرسل: ADCB أو FAB أو EmiratesNBD (كما يظهر في الرسائل).",
+      "اختر «تشغيل فوراً» ← التالي.",
+      "أضف مصروفي «تسجيل رسالة البنك» ← الرسالة: مُدخل الاختصار.",
+      "تم. عمليتك القادمة تتسجّل لحالها."],
+    privacy: "كل شيء يبقى على جوالك. بدون بيانات دخول البنك، وبدون خادم.",
+    now: "الآن", logged: "المتبقي اليوم", skipped: "ليست عملية مالية، تم التجاهل", dup: "مسجّلة من قبل",
+    pAmount: "المبلغ", pType: "النوع", pWhere: "المتجر", pCard: "البطاقة", pCat: "الفئة", pBal: "الرصيد بعدها",
+    kinds: { purchase: "شراء", withdrawal: "سحب نقدي", transferOut: "تحويل صادر", income: "دخل", refund: "استرداد" },
+    willSkip: "مصروفي بيتجاهل هذه الرسالة (رمز تحقق، عرض، عملية مرفوضة، أو بدون مبلغ).",
+    cmpRows: [
+      ["يقرأ رسائل البنك تلقائياً", "yes:بنوك سعودية", "no:يدوي / استيراد بالذكاء الاصطناعي", "yes:بنوك الإمارات، عربي وإنجليزي"],
+      ["رقم يومي «تقدر تصرف»", "yes:", "no:", "yes:حسب دورة الراتب"],
+      ["ميزانية لكل فئة", "yes:Pro", "yes:", "yes:"],
+      ["فواتير ثابتة وتقسيط (تابي، تمارا)", "yes:", "yes:اشتراكات", "yes:تتعلّم تلقائياً عند الدفع"],
+      ["واجهة عربية", "yes:", "yes:", "yes:من اليمين لليسار بالكامل"],
+      ["أدوات وسيري", "yes:", "yes:", "yes:الشاشة الرئيسية والقفل وسيري"],
+      ["يتعلّم فئاتك", "no:", "no:", "yes:غيّرها مرة وتنطبق دائماً"],
+      ["البيانات على الجهاز", "yes:", "yes:مزامنة iCloud", "yes:"]],
+  }
+};
+
+// ---------- Sample state (example figures, not a real person's) ----------
+const SETTINGS = { income: 18500, savings: 2000, payday: 27 };
+const TODAY = new Date(2026, 10, 17, 9, 41);
+const BILLS = [
+  { en: "Rent", ar: "الإيجار", amount: 6500, day: 1, paid: true, key: "rent" },
+  { en: "School fees", ar: "رسوم المدرسة", amount: 1500, day: 5, paid: true, key: "school" },
+  { en: "TAQA electricity & water", ar: "طاقة - كهرباء وماء", amount: 640, day: 20, paid: false, key: "taqa", match: "bills" },
+  { en: "Tabby installment", ar: "قسط تابي", amount: 400, day: 24, paid: false, key: "tabby", match: "installments" },
+];
+const BUDGETS = [["groceries", 2200], ["delivery", 600], ["transport", 700], ["dining", 500], ["shopping", 800]];
+
+const d = (day, h, m) => new Date(2026, day < 27 ? 10 : 9, day, h, m);
+let txs = [
+  { merchant: "Salary", amount: 18500, currency: "AED", kind: "income", cat: "income", date: d(27, 8, 2) },
+  { merchant: "LULU HYPERMARKET", amount: 412.75, currency: "AED", kind: "purchase", cat: "groceries", date: d(1, 18, 20), card: "1234" },
+  { merchant: "ADNOC 512", amount: 120, currency: "AED", kind: "purchase", cat: "fuel", date: d(9, 7, 50), card: "1234" },
+  { merchant: "CAREEM", amount: 38.5, currency: "AED", kind: "purchase", cat: "transport", date: d(12, 22, 10), card: "5678" },
+  { merchant: "SPINNEYS", amount: 1460, currency: "AED", kind: "purchase", cat: "groceries", date: d(14, 19, 0), card: "1234" },
+  { merchant: "TALABAT", amount: 186, currency: "AED", kind: "purchase", cat: "delivery", date: d(15, 21, 5), card: "5678" },
+  { merchant: "CENTREPOINT", amount: 799, currency: "AED", kind: "purchase", cat: "shopping", date: d(16, 17, 40), card: "5678" },
+  { merchant: "STARBUCKS", amount: 24, currency: "AED", kind: "purchase", cat: "dining", date: new Date(2026, 10, 17, 8, 15), card: "1234" },
+];
+const FX = { AED: 1, USD: 3.6725, EUR: 4.0, GBP: 4.7, SAR: 0.979 };
+const aedOf = t => t.amount * (FX[t.currency] || 1);
+const isExp = t => ["purchase", "withdrawal", "transferOut"].includes(t.kind);
+
+const SAMPLES = [
+  ["FAB", "Card ending 1234 was used for AED 45.50 at CARREFOUR,ABU DHABI AE on 17/11/2026 10:22. Available balance AED 5,230.10"],
+  ["ADCB", "Your Cr.Card XXX5678 was used for AED125.00 on 17/11/2026 at TALABAT,DUBAI. Avl Cr. limit is AED 12,000.00"],
+  ["ADIB", "تم خصم مبلغ ٣٢٫٠٠ درهم من بطاقتك المنتهية ب ١٢٣٤ لدى كارفور بتاريخ ١٧/١١/٢٠٢٦. الرصيد المتاح ٥٬١٩٨٫١٠ درهم"],
+  ["EmiratesNBD", "Purchase of USD 15.49 with Debit Card ending 4321 at NETFLIX.COM. Avl Balance is AED 4,100.00."],
+  ["TAQA bill", "AED 640.00 has been debited from your account XXX9012 for payment to TAQA ADDC. Avl Bal AED 3,460.00"],
+  ["ADCB", "Your OTP for AED 899.00 at AMAZON.AE is 482913. Do not share it with anyone."],
+];
+
+let lang = "en", tab = 0, lastAdded = null;
+try { lang = localStorage.getItem("masroofi-lang") || "en"; } catch {}
+
+// ---------- Logic (mirrors SafeToSpend.swift) ----------
+function cycle() {
+  const start = new Date(2026, 9, SETTINGS.payday), end = new Date(2026, 10, SETTINGS.payday);
+  const daysLeft = Math.max(1, Math.round((end - new Date(2026, 10, 17)) / 864e5));
+  return { start, end, daysLeft };
+}
+function safeToSpend() {
+  const c = cycle(), sod = new Date(2026, 10, 17);
+  const flex = txs.filter(t => isExp(t) && !t.fixed);
+  const refunds = txs.filter(t => t.kind === "refund").reduce((s, t) => s + aedOf(t), 0);
+  const before = flex.filter(t => t.date < sod).reduce((s, t) => s + aedOf(t), 0) - refunds;
+  const today = flex.filter(t => t.date >= sod).reduce((s, t) => s + aedOf(t), 0);
+  const income = Math.max(txs.filter(t => t.kind === "income").reduce((s, t) => s + aedOf(t), 0), SETTINGS.income);
+  const fixed = BILLS.reduce((s, b) => s + b.amount, 0);
+  const avail = income - fixed - SETTINGS.savings - before;
+  const allowance = Math.max(0, avail / c.daysLeft);
+  const left = allowance - today, ratio = allowance ? today / allowance : 1;
+  const status = left < 0 ? "over" : ratio > .8 ? "careful" : ratio > .4 ? "onTrack" : "relaxed";
+  return { today: left, allowance, leftCycle: avail - today, daysLeft: c.daysLeft, status };
+}
+
+// ---------- Rendering ----------
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = (n, dec = 0) => n.toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+const catName = c => (CATEGORIES[c] || CATEGORIES.other)[lang === "ar" ? 1 : 0];
+const catIcon = c => (CATEGORIES[c] || CATEGORIES.other)[2];
+const statusColor = s => `var(--${s === "over" ? "bad" : s === "careful" ? "warn" : s === "relaxed" ? "good" : "accent"})`;
+const time = dt => dt.toLocaleTimeString(lang === "ar" ? "ar-AE-u-nu-latn" : "en-AE", { hour: "numeric", minute: "2-digit" });
+
+const ICONS = [
+  '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1.5v2.5M12 20v2.5M1.5 12H4M20 12h2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8"/></g></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="4" width="17" height="16" rx="3"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 3a9 9 0 1 0 9.95 10H11z"/><path d="M13 1.05V11h9.95A10 10 0 0 0 13 1.05z" opacity=".55"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12a8 8 0 1 0 16 0 8 8 0 0 0-16 0"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>',
+];
+
+function rowHTML(t) {
+  const isNew = t === lastAdded ? " new" : "";
+  const amt = (isExp(t) ? "−" : "+") + fmt(t.amount, 2);
+  const label = t.merchant || catName(t.cat);
+  return `<div class="row${isNew}"><div class="ico" aria-hidden="true">${catIcon(t.cat)}</div>
+    <div style="min-width:0"><div class="name">${esc(label)}</div><div class="meta">${esc(catName(t.cat))} · ${time(t.date)}${t.card ? " · •••• " + esc(t.card) : ""}</div></div>
+    <div class="amt${isExp(t) ? "" : " in"}">${amt}<small>${esc(t.currency)}</small></div></div>`;
+}
+
+function viewToday() {
+  const L = T[lang], s = safeToSpend();
+  const spent = Math.max(0, s.allowance - s.today), p = s.allowance ? Math.min(1, spent / s.allowance) : 1;
+  const C = 2 * Math.PI * 92;
+  const todays = txs.filter(t => t.date >= new Date(2026, 10, 17)).sort((a, b) => b.date - a.date);
+  return `<div class="navtitle">${lang === "ar" ? "مصروفي" : "Masroofi"}</div>
+    <div class="ringbox">
+      <svg viewBox="0 0 220 220" role="img" aria-label="${esc(L.safe)}">
+        <circle cx="110" cy="110" r="92" fill="none" stroke="var(--line)" stroke-width="16"/>
+        <circle cx="110" cy="110" r="92" fill="none" stroke="${statusColor(s.status)}" stroke-width="16" stroke-linecap="round"
+          stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - p)}" transform="rotate(-90 110 110)" style="transition: stroke-dashoffset .8s ease, stroke .4s"/>
+      </svg>
+      <div class="ringlabel"><small>${L.safe}</small><strong>AED ${fmt(Math.max(0, s.today))}</strong>
+        <em style="color:${statusColor(s.status)}">${L.status[s.status]}</em></div>
+    </div>
+    <div class="tiles"><div class="tile"><small>${L.leftPayday}</small><b dir="ltr">AED ${fmt(s.leftCycle)}</b></div>
+      <div class="tile"><small>${L.daysPayday}</small><b>${s.daysLeft}</b></div></div>
+    <h3 class="sec">${L.today}</h3>
+    <div class="list">${todays.length ? todays.map(rowHTML).join("") : `<div class="empty">${L.noSpend}</div>`}</div>`;
+}
+
+function viewActivity() {
+  const L = T[lang];
+  const groups = {};
+  [...txs].sort((a, b) => b.date - a.date).forEach(t => {
+    const k = t.date.toDateString(); (groups[k] ||= []).push(t);
+  });
+  return `<div class="navtitle">${L.tabs[1]}</div>` + Object.entries(groups).map(([k, items]) => {
+    const total = items.filter(isExp).reduce((s, t) => s + aedOf(t), 0);
+    const label = new Date(k).toLocaleDateString(lang === "ar" ? "ar-AE-u-nu-latn" : "en-AE", { weekday: "long", day: "numeric", month: "short" });
+    return `<div class="daylabel"><span>${label}</span><span>AED ${fmt(total)}</span></div><div class="list">${items.map(rowHTML).join("")}</div>`;
+  }).join("");
+}
+
+function viewBudgets() {
+  const L = T[lang], c = cycle();
+  const spent = {};
+  txs.filter(t => isExp(t) && t.date >= c.start && !t.fixed).forEach(t => spent[t.cat] = (spent[t.cat] || 0) + aedOf(t));
+  const buds = BUDGETS.map(([cat, lim]) => {
+    const s = spent[cat] || 0, r = s / lim;
+    const col = r > 1 ? "var(--bad)" : r > .8 ? "var(--warn)" : "var(--accent)";
+    return `<div class="bud"><div class="top"><span>${catIcon(cat)} ${catName(cat)}</span><span>${fmt(s)} / ${fmt(lim)}</span></div>
+      <div class="bar"><i style="width:${Math.min(100, r * 100)}%;background:${col}"></i></div></div>`;
+  }).join("");
+  const bills = BILLS.map(b => `<div class="bill"><span><span class="chk${b.paid ? " on" : ""}">${b.paid ? "✓" : ""}</span>${b[lang]}</span><span>AED ${fmt(b.amount)}</span></div>`).join("");
+  return `<div class="navtitle">${L.tabs[2]}</div><h3 class="sec">${L.budgets}</h3><div class="list">${buds}</div>
+    <h3 class="sec" style="margin-top:18px">${L.bills}</h3><div class="list">${bills}</div>`;
+}
+
+function viewSetup() {
+  const L = T[lang];
+  return `<div class="navtitle">${L.tabs[3]}</div><h3 class="sec">${L.setupTitle}</h3>
+    <div class="list">${L.setupSteps.map((s, i) => `<div class="step"><b>${i + 1}</b><span>${s}</span></div>`).join("")}</div>
+    <p class="empty">${L.privacy}</p>`;
+}
+
+function renderPhone() {
+  const L = T[lang];
+  $("#view").innerHTML = [viewToday, viewActivity, viewBudgets, viewSetup][tab]();
+  $("#tabbar").innerHTML = L.tabs.map((name, i) =>
+    `<button role="tab" aria-selected="${i === tab}" data-tab="${i}">${ICONS[i]}<span>${name}</span></button>`).join("");
+}
+
+function renderSide() {
+  const L = T[lang];
+  document.querySelectorAll("[data-i18n]").forEach(el => { const v = L[el.dataset.i18n]; if (v) el.innerHTML = v; });
+  $("#samples").innerHTML = SAMPLES.map(([from, msg], i) => {
+    const rtl = /[؀-ۿ]/.test(msg.slice(0, 6));
+    return `<button class="sample" data-i="${i}" data-dir="${rtl ? "rtl" : "ltr"}"><span class="from">${esc(from)}</span><span class="txt" dir="${rtl ? "rtl" : "ltr"}">${esc(msg)}</span></button>`;
+  }).join("");
+  $("#cmp").innerHTML = L.cmpRows.map(([f, ...cells]) => `<tr><td>${f}</td>${cells.map((c, i) => {
+    const [y, note] = c.split(/:(.*)/s);
+    return `<td class="${i === 2 ? "us" : ""}"><span class="${y}">${y === "yes" ? "✓" : "—"}</span> ${esc(note || "")}</td>`;
+  }).join("")}</tr>`).join("");
+  $("#lang-en").setAttribute("aria-pressed", lang === "en");
+  $("#lang-ar").setAttribute("aria-pressed", lang === "ar");
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+}
+
+function render() { renderSide(); renderPhone(); preview(); }
+
+// ---------- SMS → automation → app ----------
+function notify(sender, text, appStyle) {
+  const box = $("#notes");
+  const n = document.createElement("div");
+  n.className = "note";
+  n.innerHTML = `<header><b>${appStyle ? (lang === "ar" ? "مصروفي" : "Masroofi") : esc(sender)}</b><span>${T[lang].now}</span></header><p dir="auto">${esc(text)}</p>`;
+  box.prepend(n);
+  setTimeout(() => { n.classList.add("out"); setTimeout(() => n.remove(), 400); }, appStyle ? 3200 : 2600);
+}
+
+function deliver(sender, msg) {
+  notify(sender, msg, false);
+  setTimeout(() => {
+    const L = T[lang];
+    const p = parse(msg, sender);
+    if (!p) { notify("", L.skipped, true); return; }
+    const at = new Date(2026, 10, 17, 9 + Math.floor(Math.random() * 9), Math.floor(Math.random() * 60));
+    const t = { merchant: p.merchant || "", amount: p.amount, currency: p.currency, kind: p.kind, cat: categorize(p), date: at, card: p.cardLast4 };
+    const dup = txs.some(x => x.amount === t.amount && x.merchant === t.merchant && x.card === t.card && x.date >= new Date(2026, 10, 17));
+    if (dup) { notify("", L.dup, true); return; }
+    // A payment that matches an unpaid fixed bill ticks it off instead of eating today's amount.
+    const bill = BILLS.find(b => !b.paid && b.match === t.cat && Math.abs(b.amount - aedOf(t)) <= Math.max(5, b.amount * .02));
+    if (bill && isExp(t)) { bill.paid = true; t.fixed = true; }
+    txs.push(t); lastAdded = t;
+    tab = bill ? 2 : 0;
+    renderPhone();
+    const s = safeToSpend();
+    const where = t.merchant ? ` · ${t.merchant}` : "";
+    notify("", isExp(t) ? `${t.currency} ${fmt(t.amount, 2)}${where}. ${L.logged}: AED ${fmt(Math.max(0, s.today))}` : `+${t.currency} ${fmt(t.amount, 2)}${where}`, true);
+  }, 1100);
+}
+
+function preview() {
+  const L = T[lang], msg = $("#custom-msg").value.trim();
+  if (!msg) { $("#preview").innerHTML = ""; return; }
+  const p = parse(msg, $("#custom-sender").value);
+  if (!p) { $("#preview").innerHTML = `<div class="verdict skip">${L.willSkip}</div>`; return; }
+  const cells = [[L.pAmount, `${p.currency} ${fmt(p.amount, 2)}`], [L.pType, L.kinds[p.kind]], [L.pWhere, p.merchant || "—"],
+    [L.pCard, p.cardLast4 ? "•••• " + p.cardLast4 : "—"], [L.pCat, catIcon(categorize(p)) + " " + catName(categorize(p))],
+    [L.pBal, p.balanceAfter != null ? fmt(p.balanceAfter, 2) : "—"]];
+  $("#preview").innerHTML = `<div class="parsed">${cells.map(([k, v]) => `<div><small>${k}</small><b dir="auto">${esc(v)}</b></div>`).join("")}</div>`;
+}
+
+// ---------- Events ----------
+document.addEventListener("click", e => {
+  const tb = e.target.closest("[data-tab]");
+  if (tb) { tab = +tb.dataset.tab; lastAdded = null; renderPhone(); return; }
+  const sm = e.target.closest(".sample");
+  if (sm) { const [from, msg] = SAMPLES[+sm.dataset.i]; deliver(from, msg); }
+});
+$("#send-custom").addEventListener("click", () => {
+  const msg = $("#custom-msg").value.trim();
+  if (msg) deliver($("#custom-sender").value.trim() || "Bank", msg);
+});
+$("#custom-msg").addEventListener("input", preview);
+$("#custom-sender").addEventListener("input", preview);
+for (const l of ["en", "ar"]) $("#lang-" + l).addEventListener("click", () => {
+  lang = l; try { localStorage.setItem("masroofi-lang", l); } catch {}
+  render();
+});
+
+render();
+</script>

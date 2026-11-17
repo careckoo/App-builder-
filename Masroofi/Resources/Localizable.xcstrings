@@ -1,0 +1,896 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%lld days to payday": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld يوم حتى الراتب"
+          }
+        }
+      }
+    },
+    "About": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تقريباً"
+          }
+        }
+      }
+    },
+    "Activity": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحركات"
+          }
+        }
+      }
+    },
+    "Add a budget": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أضف ميزانية"
+          }
+        }
+      }
+    },
+    "Add a fixed bill": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أضف فاتورة ثابتة"
+          }
+        }
+      }
+    },
+    "Add a note": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أضف ملاحظة"
+          }
+        }
+      }
+    },
+    "Already logged": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مسجّلة من قبل"
+          }
+        }
+      }
+    },
+    "Always use this for %@": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استخدم هذه الفئة دائماً لـ %@"
+          }
+        }
+      }
+    },
+    "Amount": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المبلغ"
+          }
+        }
+      }
+    },
+    "Amount (AED)": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المبلغ (درهم)"
+          }
+        }
+      }
+    },
+    "Automatic tracking": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التتبّع التلقائي"
+          }
+        }
+      }
+    },
+    "Bank": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "البنك"
+          }
+        }
+      }
+    },
+    "Bank message setup": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إعداد رسائل البنك"
+          }
+        }
+      }
+    },
+    "Bank messages appear here by themselves.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رسائل البنك تظهر هنا تلقائياً."
+          }
+        }
+      }
+    },
+    "Budgets": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الميزانيات"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إلغاء"
+          }
+        }
+      }
+    },
+    "Card": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "البطاقة"
+          }
+        }
+      }
+    },
+    "Category": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الفئة"
+          }
+        }
+      }
+    },
+    "Check it works": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تأكد إنه يشتغل"
+          }
+        }
+      }
+    },
+    "Choose Message. Next to Sender, add: %@.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختر «رسالة». بجانب «المرسل» أضف: %@."
+          }
+        }
+      }
+    },
+    "Choose Run Immediately, then tap Next.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختر «تشغيل فوراً» ثم اضغط «التالي»."
+          }
+        }
+      }
+    },
+    "Connect your bank messages — one time": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اربط رسائل بنكك — مرة وحدة بس"
+          }
+        }
+      }
+    },
+    "Date": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التاريخ"
+          }
+        }
+      }
+    },
+    "Days to payday": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أيام حتى الراتب"
+          }
+        }
+      }
+    },
+    "Delete transaction": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حذف العملية"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم"
+          }
+        }
+      }
+    },
+    "Due on the %lld": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تستحق يوم %lld"
+          }
+        }
+      }
+    },
+    "Export to CSV": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تصدير CSV"
+          }
+        }
+      }
+    },
+    "Finish the Shortcuts setup and your next card payment will show up here.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أكمل إعداد الاختصارات وأول عملية بالبطاقة بتظهر هنا."
+          }
+        }
+      }
+    },
+    "Fixed bills": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الفواتير الثابتة"
+          }
+        }
+      }
+    },
+    "Go easy for the rest of today": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "خفّف باقي اليوم"
+          }
+        }
+      }
+    },
+    "How much you can spend today and still reach payday.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كم تقدر تصرف اليوم وتوصل للراتب براحة."
+          }
+        }
+      }
+    },
+    "I'll finish this later": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بكمّل بعدين"
+          }
+        }
+      }
+    },
+    "If a bank's sender name is different on your phone, use the name exactly as it appears in Messages.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إذا كان اسم المرسل مختلف في جوالك، اكتبه بالضبط كما يظهر في الرسائل."
+          }
+        }
+      }
+    },
+    "Language": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اللغة"
+          }
+        }
+      }
+    },
+    "Left until payday": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المتبقي حتى الراتب"
+          }
+        }
+      }
+    },
+    "Let's start": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يلا نبدأ"
+          }
+        }
+      }
+    },
+    "Log bank message": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تسجيل رسالة البنك"
+          }
+        }
+      }
+    },
+    "Masroofi": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مصروفي"
+          }
+        }
+      }
+    },
+    "Masroofi reads those messages and keeps your budget for you. No typing numbers, no bank passwords, and nothing leaves your iPhone.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مصروفي يقرأ هذه الرسائل ويرتّب ميزانيتك عنك. بدون إدخال أرقام، بدون كلمات مرور البنك، وكل شيء يبقى على جوالك."
+          }
+        }
+      }
+    },
+    "Merchant": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المتجر"
+          }
+        }
+      }
+    },
+    "Message": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الرسالة"
+          }
+        }
+      }
+    },
+    "Monthly limit (AED)": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحد الشهري (درهم)"
+          }
+        }
+      }
+    },
+    "Monthly salary (AED)": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الراتب الشهري (درهم)"
+          }
+        }
+      }
+    },
+    "Name, e.g. Rent": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الاسم، مثل: الإيجار"
+          }
+        }
+      }
+    },
+    "Next": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التالي"
+          }
+        }
+      }
+    },
+    "No spending yet today": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا مصاريف اليوم بعد"
+          }
+        }
+      }
+    },
+    "Not a transaction, skipped": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ليست عملية مالية، تم التجاهل"
+          }
+        }
+      }
+    },
+    "Note": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ملاحظة"
+          }
+        }
+      }
+    },
+    "Nothing yet": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا يوجد شيء بعد"
+          }
+        }
+      }
+    },
+    "On track": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "على المسار"
+          }
+        }
+      }
+    },
+    "Open Masroofi to finish setup": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "افتح مصروفي لإكمال الإعداد"
+          }
+        }
+      }
+    },
+    "Open Shortcuts": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "افتح الاختصارات"
+          }
+        }
+      }
+    },
+    "Open Shortcuts, tap Automation, then New Automation (+).": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "افتح تطبيق الاختصارات، اضغط «الأتمتة» ثم «أتمتة جديدة» (+)."
+          }
+        }
+      }
+    },
+    "Original message": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الرسالة الأصلية"
+          }
+        }
+      }
+    },
+    "Over today's amount — tomorrow adjusts": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تجاوزت مبلغ اليوم — بكرة يتعدّل تلقائياً"
+          }
+        }
+      }
+    },
+    "Paste a bank SMS in Arabic or English.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الصق رسالة البنك بالعربي أو الإنجليزي."
+          }
+        }
+      }
+    },
+    "Paste a message": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الصق رسالة"
+          }
+        }
+      }
+    },
+    "Payday": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يوم الراتب"
+          }
+        }
+      }
+    },
+    "Reads a bank SMS and adds the transaction to Masroofi.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يقرأ رسالة البنك ويضيف العملية إلى مصروفي."
+          }
+        }
+      }
+    },
+    "Rent, school fees, DEWA or TAQA, Tabby and Tamara installments. They're set aside before your daily amount is worked out, and ticked off when the bank message arrives.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الإيجار، رسوم المدارس، فاتورة طاقة أو ديوا، وأقساط تابي وتمارا. نخصمها قبل حساب مبلغك اليومي، وتتعلّم كمدفوعة لما توصل رسالة البنك."
+          }
+        }
+      }
+    },
+    "Safe to spend": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المسموح اليوم"
+          }
+        }
+      }
+    },
+    "Safe to spend today": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تقدر تصرف اليوم"
+          }
+        }
+      }
+    },
+    "Salary": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الراتب"
+          }
+        }
+      }
+    },
+    "Save": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حفظ"
+          }
+        }
+      }
+    },
+    "Save each month (AED)": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الادخار الشهري (درهم)"
+          }
+        }
+      }
+    },
+    "Search for Masroofi, choose “Log bank message”, then tap Message and pick Shortcut Input → Message.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ابحث عن «مصروفي» واختر «تسجيل رسالة البنك»، ثم اضغط «الرسالة» واختر مُدخل الاختصار ← الرسالة."
+          }
+        }
+      }
+    },
+    "Search merchants or categories": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ابحث عن متجر أو فئة"
+          }
+        }
+      }
+    },
+    "Sender": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المرسل"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الإعدادات"
+          }
+        }
+      }
+    },
+    "Stored only on this iPhone.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "محفوظة على هذا الآيفون فقط."
+          }
+        }
+      }
+    },
+    "Tap Done. Repeat for each bank, or add all of them as senders in one automation.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اضغط «تم». كرّر لكل بنك، أو أضف كل البنوك كمرسلين في أتمتة واحدة."
+          }
+        }
+      }
+    },
+    "This doesn't look like a transaction.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هذه الرسالة لا تبدو عملية مالية."
+          }
+        }
+      }
+    },
+    "This is a fixed bill (rent, school, installment)": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هذه فاتورة ثابتة (إيجار، مدرسة، قسط)"
+          }
+        }
+      }
+    },
+    "This is the only time you'll type a number. When your salary SMS arrives, Masroofi uses the real amount.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هذه المرة الوحيدة اللي تكتب فيها رقم. لما توصل رسالة الراتب، نستخدم المبلغ الفعلي."
+          }
+        }
+      }
+    },
+    "This pay cycle": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "دورة الراتب الحالية"
+          }
+        }
+      }
+    },
+    "Today": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اليوم"
+          }
+        }
+      }
+    },
+    "Today: %@": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اليوم: %@"
+          }
+        }
+      }
+    },
+    "Tracking": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التتبّع"
+          }
+        }
+      }
+    },
+    "Transaction": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عملية"
+          }
+        }
+      }
+    },
+    "Waiting for your next card payment, or paste an old bank SMS from Today › Paste.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ننتظر عمليتك القادمة بالبطاقة، أو الصق رسالة قديمة من «اليوم» ← «لصق»."
+          }
+        }
+      }
+    },
+    "We understood": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فهمنا التالي"
+          }
+        }
+      }
+    },
+    "Where": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المكان"
+          }
+        }
+      }
+    },
+    "Which banks text you?": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أي البنوك ترسل لك رسائل؟"
+          }
+        }
+      }
+    },
+    "You're doing great": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ممتاز، كمّل كذا"
+          }
+        }
+      }
+    },
+    "Your bank already texts you every purchase": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بنكك يرسل لك رسالة مع كل عملية"
+          }
+        }
+      }
+    },
+    "Your first bank message arrived": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "وصلت أول رسالة من البنك"
+          }
+        }
+      }
+    },
+    "Your messages and transactions stay on this iPhone. Masroofi has no server and never asks for bank logins.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رسائلك وعملياتك تبقى على هذا الآيفون. مصروفي ما عنده خادم وما يطلب أبداً بيانات دخول البنك."
+          }
+        }
+      }
+    },
+    "Your salary": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "راتبك"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
