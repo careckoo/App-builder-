@@ -1,0 +1,196 @@
+# Structured status: `@status` and `@verified` tokens
+
+> Authoritative spec for the machine-readable status feature (format v2+).
+> Governs how a row's status is written, read, and validated. When any command
+> needs a row's status, it reads the TOKEN defined here — never the prose.
+
+## Why this exists
+
+A free-text Status cell can contradict itself: a row whose cell opens "RE-OPENED
+/ still owed" and ends "✅ CLOSED" reads as closed to a skimmer and open to a
+careful reader. That actually happened (the U5 failure) and misled a session
+twice. The fix: one authoritative, machine-readable token that is THE status.
+Prose after it is human narration only.
+
+Principle: *keep judgment out of prose and in a structured field the tool can
+read.* Status, and how a "done" was verified, are judgments — so they get tokens.
+
+## The `@status` token
+
+Every row's Status cell begins with exactly one status token:
+
+```
+`@status:<value>` <optional human narration follows>
+```
+
+### Enum (the only valid values)
+
+| Value | Meaning |
+|---|---|
+| `open` | Not started. |
+| `in-progress` | Actively being worked. |
+| `done-verified` | Fixed AND checked against ground truth. Requires a `@verified` tier (see below). |
+| `done-unverified` | Fixed in code or claimed done, but NOT yet ground-truth-checked. The "done-but-owed" state. |
+| `blocked` | Cannot proceed; the narration names the blocker. |
+| `withdrawn` | Retracted / not-a-bug / superseded. |
+
+`done-unverified` is the important one: it is a real, first-class state for work
+that is done enough to stop touching but not proven enough to archive. Before
+this existed, such rows either falsely read as closed or cluttered the active
+table.
+
+## The `@verified` token (required on `done-verified`)
+
+Any `done-*` status may carry a verification tier naming *how* the claim was
+checked. It is REQUIRED on `done-verified`.
+
+```
+`@verified:<tier>`
+```
+
+| Tier | Means |
+|---|---|
+| `code` | Compiles / unit tests green / static trace. NOT proven in the real system. |
+| `device` | Exercised on real hardware / real data / the actual runtime. |
+| `user` | The user confirmed it by eyeball or real use. |
+| `session-claimed` | A session asserted done; NO independent check. The weakest tier — a flag, not a proof. |
+
+### The rule that makes it bite (§3a)
+
+- `@status:done-verified` **requires** `@verified:device` or `@verified:user`
+  (or `@verified:code` *with an explicit code-is-sufficient note* for pure-logic
+  changes where code is itself ground truth — e.g. a parser with exhaustive
+  tests).
+- **`@verified:session-claimed` can NEVER back `done-verified`.** A claim is not
+  a verification. Such a row is `done-unverified` at best. This encodes the
+  project rule *"verified means checked against ground truth, never that a claim
+  was made."*
+
+### Provenance stamp (anti-laundering)
+
+A `done-*` row should record who/what verified it and when, in the narration:
+
+```
+`@status:done-verified` `@verified:device` · TF77 · 2026-07-25 — round-trip confirmed
+`@status:done-unverified` `@verified:code` · session 2026-07-24 — 59/59 green, device owed
+```
+
+So a later reader (or the verify pass) can check whether a "device" claim has
+device evidence in the detail block. A `@verified:device` token with no device
+evidence is the exact over-claim this stamp makes visible.
+
+## The contradiction rule (§1b)
+
+If the token says a row is `done-verified` or `withdrawn` but the narration
+still says "re-opened", "still broken", "still owed", "unverified", "blocker",
+etc., that is a **lint error** — the token and the prose disagree, and the token
+is supposed to be authoritative. The verify pass (Phase 3) flags it. Note a
+`done-unverified` row saying "owed"/"unverified" is NOT a contradiction — that
+is the honest meaning of the state.
+
+## Archive & release invariants (§1c)
+
+- `archive` moves **only clean** `done-verified` and `withdrawn` (valid evidence, no contradiction). **`done-unverified`
+  is HELD BACK** — it still owes a check; archiving it would bury an open
+  obligation.
+- A `🔴 THIS` (current-release) row still counts as a release blocker unless its
+  closure is cleanly `done-verified` or `withdrawn` (or a clear legacy completion). A `done-unverified` THIS row is STILL
+  a blocker — it is not proven.
+
+## Backward compatibility (legacy rows)
+
+Rows written before format v2 have no token. They are NOT errors: a tokenless
+row is reported `token_present: false` and passes through `list`/`scan`/`archive`
+as-is (a legacy row is never auto-archived, since it is not `done-verified`).
+Tokenless legacy rows do not block solely because the token is absent. New v2
+rows and explicit Status edits get a token. Edits to Target, ratings, or other
+cells preserve Status byte-for-byte unless the user explicitly requests a format
+migration. A migration must still satisfy the verification-evidence rules.
+
+## How commands use this
+
+- `list` / `scan` / `archive` / `edit` / `promote` read the `@status` token,
+  never the prose, to decide state.
+- `edit --status=done` requires a `@verified` tier; if only `session-claimed` is
+  available, the status becomes `done-unverified`, not `done-verified`.
+- `archive` uses the archive invariant above.
+
+## Preferred implementation
+
+Delegate parsing and validation to the helper:
+
+```
+python3 scripts/parse_status.py --row "<the table row>"
+python3 scripts/parse_status.py --file <path-to-UNFORGET.md>
+```
+
+It returns JSON per row: `status`, `verified`, `status_valid`, `tier_valid`,
+`contradiction`, `archivable`, `blocks_release`, and an `issues` list (empty when
+clean). Exit code 1 means at least one row has an integrity issue.
+
+**Algorithm fallback** (if Python is unavailable): the status token is the first
+`@status:<value>` in the Status cell; the tier is the first `@verified:<tier>`.
+Validate: `status` is in the enum; if `done-verified`, a `@verified` of `device`
+or `user` (or `code` with a note) is present and it is not `session-claimed`;
+and no contradiction phrase ("re-opened", "still broken", "still owed",
+"unverified", "blocker") appears in the narration of a `done-verified`/
+`withdrawn` row. `archivable` requires clean closure; invalid claims cannot archive. Code-only closure requires the declaration below.
+
+## Code-only closure declaration (v2.9.1)
+
+A `done-verified` + `@verified:code` row requires `Code-is-sufficient: <nonempty justification>`
+in its Status narration, or on a dedicated line inside that exact ID's bullet under a
+`### Detail` heading. Explain why code evidence settles this item (for example a pure
+function covered by deterministic tests). A bare token, "tests passed", empty declaration,
+another item's declaration, or session-claimed tier does not qualify. Contradictory Status
+narration or a contradictory declaration still prevents closure. Historical detail prose
+is not treated as current status; keep current obligations in Status.
+
+The shared evaluator reports `completed`, `archivable`, `blocks_release`, and integrity
+issues; HTML consumes the same decision after extracting columns by header. Invalid
+verified claims remain unfinished without changing the ledger. Supply real evidence or
+return the row to `done-unverified`. A clean legacy completion (Fixed/Closed/Done/Withdrawn
+at the start, without negation or open/owed/mixed narration) may count as completed for
+release/reporting, but tokenless rows are never automatically archived.
+
+## Close on report (v2.10.0)
+
+**The problem.** A session reports "fixed", the user believes it, and the ledger row either
+stays open or is closed without proof. What the user believes and what the ledger records
+drift apart, and the gap surfaces weeks later as a `verify` error or as "finished" work that
+still shows as unfinished.
+
+**The rule.** When a session reports a fix for an item that has a ledger row, it updates that
+row in the **same turn**, before the reply ends. Never leave it for "later" or for the user.
+
+1. **Find the row.** Match the fixed item to its row ID. If none exists and the fix closes a
+   deferred item, say so; do not invent a row after the fact.
+2. **Pick the honest status from the evidence produced in this session:**
+   - **`done-verified` `@verified:code`** only when tests that exercise the fix pass and the
+     code alone settles the item. Write `Code-is-sufficient: <reason>` from the evidence just
+     produced (for example "pure function; the new test fails without the fix"), never from
+     memory and never as "tests passed". A negative control (the test fails with the fix
+     removed) is the strongest basis.
+   - **`done-verified` `@verified:device` / `user`** only when that check actually happened.
+   - **`done-unverified` `@verified:session-claimed`** when the fix is written but its proof is
+     not: name what is owed in the narration ("device check owed", "needs the 2-account
+     test"). This is not a failure; it is the honest state, and it keeps blocking a release
+     if the row is THIS.
+3. **Validate** with `python3 scripts/parse_status.py --row "<row>"` and fix any
+   `tier_valid:false` or contradiction before saving (see `reference/commands.md` §
+   Status-token rule).
+4. **Report the row, not just the fix.** End the fix report with the row's new state in one
+   line, for example "A280 → `done-verified` `@verified:code` (Code-is-sufficient: …)" or
+   "A41 → `done-unverified`, device check owed".
+
+**Wording must match the ledger.** Say "fixed and verified" only when the row now reads
+`done-verified`. Otherwise say "fixed, <check> owed". A user should never be told more than the
+ledger records.
+
+**When not to close.** The user said to hold it; the fix is partial (update the narration with
+what remains and keep the row open); or the session cannot write the ledger (say so and give
+the exact status line to paste).
+
+**Projects can add a backstop.** A project hook can compare recent commits that cite a row ID
+against the ledger and remind the session when a cited row is still open or closed without
+proof. unforget does not ship one; it is host- and project-specific.

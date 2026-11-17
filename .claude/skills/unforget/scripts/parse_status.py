@@ -1,0 +1,468 @@
+#!/usr/bin/env python3
+r"""Parse unforget @status / @verified tokens from ledger rows.
+
+Implements the structured-status feature (see reference/status.md, from the
+Maintenance & Integrity design spec §1 and §3). A row's authoritative status is
+a machine-readable token at the FRONT of the Status cell:
+
+    | U5 | ... | `@status:done-verified` `@verified:device` device round-trip ... |
+
+Tools read the token; the prose after it is human narration only. This script
+extracts the token(s), validates the tier rules, and flags a token that
+contradicts its own narration (the "self-contradicting row" failure).
+
+Usage:
+  python3 parse_status.py --row "| U5 | THIS | ... | \`@status:done-verified\` ... |"
+  python3 parse_status.py --file <path-to-UNFORGET.md>
+  python3 parse_status.py --help
+
+With --row: parses a single row, prints one JSON object.
+With --file: parses every table row that carries a status token, prints a JSON
+array (rows with no token are reported with token_present=false so legacy rows
+are visible, not silently skipped).
+
+Output per row (stdout, JSON):
+  {
+    "id": "U5"|null,
+    "token_present": true|false,
+    "status": "done-verified"|...|null,
+    "status_valid": true|false,           # status is a known enum value
+    "verified": "device"|...|null,
+    "verified_present": true|false,
+    "tier_valid": true|false,             # §3a: done-verified backed correctly
+    "contradiction": true|false,          # §1b: token disagrees with narration
+    "archivable": true|false,             # §1c: done-verified or withdrawn only
+    "blocks_release": true|false,         # §1c: THIS-target still-a-blocker
+    "issues": ["<one-line problem>", ...], # empty when clean
+    "narration": "<prose after the token, trimmed>"
+  }
+
+Exit codes:
+  0  parsed; no integrity issues found across the parsed row(s)
+  1  parsed, but at least one row has an issue (invalid tier / contradiction /
+     unknown status)
+  2  usage error / file not found / nothing parseable
+"""
+
+from __future__ import annotations
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+# --- Enums (design spec maintenance §1a, §3) ------------------------------
+
+STATUS_VALUES = {
+    "open",
+    "in-progress",
+    "done-verified",
+    "done-unverified",
+    "blocked",
+    "withdrawn",
+}
+
+VERIFIED_VALUES = {"code", "device", "session-claimed", "user"}
+
+# Tiers that are allowed to back a done-verified status (§3a). "code" is
+# allowed only with an explicit code-is-sufficient note (pure-logic changes);
+# the shared evaluator checks the item-local declaration for every caller.
+DONE_VERIFIED_OK_TIERS = {"device", "user", "code"}
+
+# Narration phrases that contradict a "done"/closed token (§1b). These are the
+# exact shapes that produced the U5 failure: a token saying closed/verified over
+# a narration that still says re-opened / broken / owed.
+CONTRADICTION_PHRASES = [
+    "re-opened",
+    "reopened",
+    "not fixed",
+    "not yet fixed",
+    "not closed",
+    "not complete",
+    "verification failed",
+    "verification pending",
+    "pending verification",
+    "failed on device",
+    "not done",
+    "still broken",
+    "still open",
+    "still owed",
+    "device round-trip still owed",
+    "device-verify owed",
+    "not yet verified",
+    "not verified",
+    "unverified",
+    "still blocked",
+    "still failing",
+    "does not work",
+    "blocker",
+]
+
+STATUS_RE = re.compile(r"@status:\s*([a-z-]+)")
+VERIFIED_RE = re.compile(r"@verified:\s*([a-z-]+)")
+# A table data row starts with "| <id> |". Capture the id and the LAST cell
+# (the Status cell) for token parsing.
+#
+# The id grammar is deliberately permissive, because a too-narrow pattern makes
+# rows INVISIBLE to every check in the lint — a silent false-negative in the
+# release gate, which is the worst failure mode this tool has. Real ledger ids
+# observed in the field that the original `[A-Za-z]?\d+` did NOT match:
+#   A48a, A48b  — a finding split into sub-rows by a letter suffix
+#   MI-08       — a hyphenated prefix used by a scoped sibling ledger
+#   **S12**     — an id wrapped in bold
+# Missing A48a/A48b hid two 🔴 THIS ship-blockers from the gate (2026-07-31).
+# Grammar: optional bold, an OPTIONAL 1-3 letter prefix (with optional hyphen),
+# digits, optional letter suffix. The prefix stays optional so bare-numeric ids
+# (`| 1 |`, used by the roadmap rating tables) keep matching as they did before.
+# Header (`| # |`) and separator (`|---|`) rows still fail to match.
+ROW_ID_RE = re.compile(r"^\|\s*\*{0,2}((?:[A-Za-z]{1,3}-?)?\d+[a-z]?)\*{0,2}\s*\|")
+
+
+def status_cell(row: str) -> str:
+    """Return the Status cell of a table row.
+
+    The Status cell is the one that CARRIES the `@status:` token — found by
+    content, not by position. This matters because the format allows an optional
+    `1-Star Risk` column appended AFTER Status (reference/format.md § Optional
+    column): a naive "last cell" would then read the risk strip, not the token,
+    silently breaking list/archive/verify. When no cell carries a token (a legacy
+    tokenless row, or a v2 row whose Status genuinely IS last), fall back to the
+    last non-empty cell so those keep working unchanged.
+
+    Scan LAST-cell-backward, not first-forward. A row may quote a status token
+    ILLUSTRATIVELY in its Finding prose — rows documenting the format itself do
+    this, and so does any row citing a sibling row's state. Finding precedes
+    Status, so a first-forward scan returns the QUOTED token and that becomes the
+    row's status for every consumer (list, archive, verify) — silently, and
+    against the row's own real token. Reproduced 2026-08-11: a Finding quoting
+    `done-verified` while citing a sibling flipped an `open` row to done-verified
+    and failed the release gate with a contradiction error that blamed the prose.
+    Scanning backward returns the rightmost token, which is the real Status cell
+    in every layout the format allows — including with 1-Star Risk appended,
+    since that column carries no token.
+    """
+    cells = [c.strip() for c in row.rstrip().rstrip("|").split("|")]
+    if not cells:
+        return ""
+    for cell in reversed(cells):
+        if STATUS_RE.search(cell):
+            return cell
+    return cells[-1]
+
+
+# The Compact preset drops the dedicated Target column and inlines the Target as a
+# badge INSIDE the Finding cell, joined by a middle-dot separator:
+#   "**🔴 THIS · <finding text>**"
+# The ` · ` separator (plus following text) is what distinguishes a Compact
+# Finding-with-badge from a Standard bare Target cell (which is JUST the badge, no
+# separator). Requiring the separator is what keeps finding_cell from mistaking a
+# Standard Target cell for a Finding.
+COMPACT_FINDING_RE = re.compile(r"^\**\s*(🔴 THIS|🔵 NEXT|🟡 LATER|⚪ SOMEDAY)\s*·\s*\S")
+# A bare Target cell (Standard/Lean) — the whole cell is the badge, nothing after.
+TARGET_BADGE_RE = re.compile(r"^\**\s*(🔴 THIS|🔵 NEXT|🟡 LATER|⚪ SOMEDAY)\**\s*$")
+
+
+def data_cells(row: str) -> list[str]:
+    """The table columns of a data row (leading/trailing empty splits removed)."""
+    return [c.strip() for c in row.strip().strip("|").split("|")]
+
+
+def finding_cell(row: str) -> str:
+    """The Finding cell, located preset-aware rather than by a fixed index.
+
+    Standard/Lean/Continuous keep a dedicated 2nd column (Target or Window), so
+    Finding is the 3rd cell (0-based index 2). The **Compact** preset DROPS the
+    Target column and inlines the Target as a badge inside Finding, so Finding
+    becomes the 2nd cell (index 1). Reading a fixed index 2 would return the
+    Urgency cell on a Compact ledger — the same positional-read bug as status_cell.
+    """
+    cells = data_cells(row)
+    if len(cells) < 2:
+        return ""
+    # Compact: cell[1] is a Finding that LEADS with a Target badge + " · " separator
+    # (there is no separate Target column). A Standard row's cell[1] is a BARE Target
+    # badge (no separator) — that must NOT be read as the Finding. So detect the
+    # Compact separator specifically; otherwise Finding is the usual index 2.
+    if COMPACT_FINDING_RE.search(cells[1]):
+        return cells[1]
+    return cells[2] if len(cells) >= 3 else cells[1]
+
+
+def target_is_this(row: str) -> bool:
+    """True if the row marks itself a current-release blocker (THIS).
+
+    The Target signal lives in the same place either way: `data_cells` index 1 is
+    the dedicated Target cell in Standard/Lean, and the Finding-with-badge cell in
+    Compact (which leads with the Target badge). So index 1 carries the badge in all
+    Target-bearing presets. Match only that cell, never the whole row, so a Finding
+    that merely contains the word "THIS" does not false-positive. (Continuous has no
+    Target — it uses Window — and no ship-gate, so THIS never applies there.)
+    """
+    cells = data_cells(row)
+    if len(cells) < 2:
+        return False
+    return bool(re.search(r"🔴 THIS|\bTHIS\b|🚢 THIS", cells[1]))
+
+
+def detail_blocks(text: str) -> dict:
+    """Only item bullets within Detail sections can supply item-local evidence."""
+    result, active, rid = {}, False, None
+    for line in text.splitlines():
+        if line.startswith("#"):
+            active = bool(re.match(r"^###\s+Detail\b", line, re.I))
+            rid = None
+        match = re.match(r"^- \*\*([A-Za-z0-9-]+)\*\*\s*[-—]\s*(.*)", line)
+        if active and match:
+            rid = match[1]
+            result[rid] = result.get(rid, "") + "\n" + match[2]
+        elif active and rid:
+            result[rid] += "\n" + line
+    return result
+
+
+def row_contexts(text: str):
+    """Yield (line, declared headers) without trusting quoted tokens in Finding."""
+    headers = None
+    lines = text.splitlines()
+    for n, line in enumerate(lines):
+        if line.startswith("#"):
+            headers = None
+        if line.startswith("|") and n + 1 < len(lines) and re.match(r"^\|?[ :|-]+$", lines[n + 1]):
+            headers = [c.strip(" *`").lower() for c in data_cells(line)]
+        elif ROW_ID_RE.match(line):
+            yield line, headers
+
+
+def named_cell(row: str, headers, name: str, fallback):
+    if headers is not None and name in headers:
+        cells = data_cells(row)
+        index = headers.index(name)
+        return cells[index] if index < len(cells) else ""
+    return fallback(row)
+
+
+def row_target(row: str, headers=None) -> str:
+    if headers and 'target' in headers:
+        value = named_cell(row, headers, 'target', lambda r: '')
+    elif headers:
+        finding = named_cell(row, headers, 'finding', lambda r: '')
+        compact = COMPACT_FINDING_RE.match(finding)
+        return compact[1].split()[-1] if compact else ''
+    else:
+        cells = data_cells(row)
+        value = cells[1] if len(cells) > 1 else ''
+    match = re.search(r"\b(THIS|NEXT|LATER|SOMEDAY)\b", value)
+    return match[1] if match else ''
+
+
+def code_note(cell: str, detail: str = '') -> str:
+    # Status narration permits an inline declaration. Details require a dedicated
+    # declaration line (not quoted historical prose or another item's note).
+    match = re.search(r"Code-is-sufficient:\s*([^\n|]*)", cell, re.I)
+    if match and match[1].strip(" *`.;—"):
+        return match[1].strip(" *` ")
+    match = re.search(r"^\s*(?:\*\*)?Code-is-sufficient:(?:\*\*)?[ \t]*([^\n]*)", detail, re.I | re.M)
+    return match[1].strip(" *` ") if match and match[1].strip(" *`.;—") else ''
+
+
+def legacy_state(cell: str) -> str:
+    text = re.sub(r"[*`~]", "", cell).strip().lower()
+    if re.search(r"\b(not (?:yet )?(?:fixed|done|closed)|open|reopened|re-opened|deferred|still broken|still failing)\b", text):
+        return 'open'
+    if re.search(r"\bblocked\b", text):
+        return 'blocked'
+    if re.search(r"\bin[ -]progress\b", text):
+        return 'in-progress'
+    if re.search(r"owed|unverified|partial|mostly.fixed|not run|skipped|not (?:yet )?verified|failed|failing|pending", text):
+        return 'done-unverified'
+    if re.match(r"^(?:[✅✔✓]\s*)?(fixed|closed|done|withdrawn)\b", text):
+        return 'legacy-complete'
+    return 'unknown'
+
+
+def parse_row(row: str, headers=None, detail: str = "", fields=None) -> dict:
+    row_id_match = ROW_ID_RE.match(row)
+    row_id = row_id_match.group(1) if row_id_match else None
+
+    cell = fields["status"] if fields is not None else named_cell(row, headers, "status", status_cell)
+    status_match = STATUS_RE.search(cell)
+    verified_match = VERIFIED_RE.search(cell)
+
+    status = status_match.group(1) if status_match else None
+    verified = verified_match.group(1) if verified_match else None
+    token_present = status is not None
+
+    # Narration = everything in the Status cell after the token(s), with the
+    # backtick-wrapped tokens themselves removed, lowercased for matching.
+    narration = cell
+    narration = re.sub(r"`?@status:[a-z-]+`?", "", narration)
+    narration = re.sub(r"`?@verified:[a-z-]+`?", "", narration)
+    narration = narration.strip(" `")
+    narration_lc = narration.lower()
+
+    issues: list[str] = []
+
+    status_valid = status in STATUS_VALUES if token_present else True
+    if token_present and not status_valid:
+        issues.append(f"unknown @status value: {status!r}")
+
+    verified_valid_value = verified in VERIFIED_VALUES if verified else True
+    if verified and not verified_valid_value:
+        issues.append(f"unknown @verified value: {verified!r}")
+
+    sufficiency = code_note(cell, detail)
+    if len(STATUS_RE.findall(cell)) > 1 or len(VERIFIED_RE.findall(cell)) > 1:
+        issues.append("multiple status/verification tokens in Status cell")
+
+    # Tier rule (§3a): done-verified must be backed by device/user (or code w/ note).
+    # session-claimed can NEVER back done-verified.
+    tier_valid = True
+    if status == "done-verified":
+        if verified is None:
+            tier_valid = False
+            issues.append("done-verified has no @verified tier (needs device/user)")
+        elif verified == "session-claimed":
+            tier_valid = False
+            issues.append(
+                "done-verified backed only by @verified:session-claimed "
+                "(a claim is not a verification; map to done-unverified)"
+            )
+        elif verified == "code" and not sufficiency:
+            tier_valid = False
+            issues.append("done-verified with @verified:code needs Code-is-sufficient: <justification> for this item")
+        elif verified not in DONE_VERIFIED_OK_TIERS:
+            tier_valid = False
+            issues.append(f"done-verified backed by @verified:{verified} (needs device/user)")
+
+    # Contradiction (§1b): a done/closed token over narration that still says
+    # reopened/broken/owed/unverified.
+    #
+    # Matching is WORD-BOUNDED, and the narration is stripped of its own status
+    # tokens first. Bare substring matching produced three false-positive classes
+    # in the field (2026-07-31):
+    #   "still open"  matched "viewers can still open + view detail"  (a verb phrase)
+    #   "blocker"     matched "not a blocker"                          (its own negation)
+    #   "unverified"  matched the row's own `@status:done-unverified`  (the token)
+    # A false contradiction is not harmless: `archivable` goes False, so the row is
+    # held out of archive forever and a human is sent to reconcile a real sentence
+    # against a phantom conflict.
+    narration_scan = re.sub(r"@(?:status|verified):[a-z-]+", " ", (narration_lc + " " + sufficiency.lower()))
+    contradiction = False
+    if status in ("done-verified", "done-unverified", "withdrawn"):
+        for phrase in CONTRADICTION_PHRASES:
+            if not re.search(rf"(?<![\w-]){re.escape(phrase)}(?![\w-])", narration_scan):
+                continue
+            # A negated mention ("not a blocker", "no longer still failing") is
+            # the row AGREEING with its token, not contradicting it.
+            if re.search(rf"\b(?:not|never|no longer|isn't|wasn't)\s+(?:\w+\s+){{0,2}}"
+                         rf"{re.escape(phrase)}(?![\w-])", narration_scan):
+                continue
+            # "still open" is ambiguous English: the ADJECTIVE ("the issue is
+            # still open") contradicts a done token, but the VERB ("viewers can
+            # still open + view detail") is ordinary prose about a UI action.
+            # Distinguish by what follows: a verb reading takes an object or a
+            # conjunction ("still open the sheet", "still open + view"), while the
+            # adjective reading ends the clause. Only the adjective contradicts.
+            if phrase == "still open" and not re.search(
+                r"(?<![\w-])still open(?![\w-])(?!\s+(?:the|a|an|it|them|this|that|"
+                r"\+|and|,|&))", narration_scan
+            ):
+                continue
+            # done-unverified legitimately says "owed"/"unverified"; only a
+            # done-VERIFIED or withdrawn row is contradicted by those.
+            owed_phrases = {"still owed", "device round-trip still owed",
+                            "device-verify owed", "not yet verified",
+                            "not verified", "unverified"}
+            if status == "done-unverified" and phrase in owed_phrases:
+                continue
+            # Withdrawn means closed WITHOUT a fix (an accepted risk, a premise
+            # that no longer applies), so saying it was not fixed AGREES with the
+            # token. "still broken" / "still open" stay contradictions: a
+            # withdrawn row that says the defect is live may belong open.
+            if status == "withdrawn" and phrase in ("not fixed", "not yet fixed"):
+                continue
+            contradiction = True
+            issues.append(f"token says {status} but narration says {phrase!r}")
+            break
+
+    # Archivable ONLY when the closure is CLEAN: withdrawn, or a done-verified
+    # whose tier is valid and whose narration doesn't contradict it. A row whose
+    # done-verified claim is invalid (bad/absent tier, or contradicted by its own
+    # prose) is NOT archivable — archiving it would bury an unresolved integrity
+    # problem, the exact failure this feature exists to prevent.
+    effective_status = status if token_present and status_valid else legacy_state(cell) if not token_present else "unknown"
+    archivable = not issues and (status == "withdrawn" or (status == "done-verified" and tier_valid and not contradiction))
+    completed = archivable or (not token_present and effective_status == "legacy-complete")
+    target = row_target(row, headers)
+    if fields is not None:
+        if "target" in fields:
+            match = re.search(r"\b(THIS|NEXT|LATER|SOMEDAY)\b", fields["target"])
+            target = match[1] if match else ""
+        else:
+            match = COMPACT_FINDING_RE.match(fields.get("finding", ""))
+            target = match[1].split()[-1] if match else ""
+    blocks_release = target == "THIS" and not completed
+
+    return {
+        "id": row_id,
+        "effective_status": effective_status,
+        "completed": completed,
+        "target": target,
+        "code_sufficiency": sufficiency,
+        "token_present": token_present,
+        "status": status,
+        "status_valid": status_valid,
+        "verified": verified,
+        "verified_present": verified is not None,
+        "tier_valid": tier_valid,
+        "contradiction": contradiction,
+        "archivable": archivable,
+        "blocks_release": blocks_release,
+        "issues": issues,
+        "narration": narration[:200],
+    }
+
+
+def parse_file(text: str) -> list[dict]:
+    results = []
+    details = detail_blocks(text)
+    for line, headers in row_contexts(text):
+        rid = ROW_ID_RE.match(line)[1]
+        results.append(parse_row(line, headers, details.get(rid, "")))
+    return results
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Parse unforget @status/@verified tokens and validate integrity."
+    )
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--row", help="A single table row string to parse")
+    group.add_argument("--file", help="Path to an UNFORGET.md to parse all rows")
+    args = parser.parse_args()
+
+    if args.row is not None:
+        result = parse_row(args.row)
+        json.dump(result, sys.stdout)
+        sys.stdout.write("\n")
+        return 1 if result["issues"] else 0
+
+    target = Path(args.file)
+    if not target.exists():
+        print(json.dumps({"error": f"file not found: {target}"}), file=sys.stderr)
+        return 2
+
+    text = target.read_text(encoding="utf-8", errors="replace")
+    results = parse_file(text)
+    if not results:
+        print(json.dumps({"error": "no table rows found"}), file=sys.stderr)
+        return 2
+
+    json.dump(results, sys.stdout)
+    sys.stdout.write("\n")
+    any_issue = any(r["issues"] for r in results)
+    return 1 if any_issue else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
