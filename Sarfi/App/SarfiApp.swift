@@ -6,6 +6,7 @@ import SarfiCore
 @main
 struct SarfiApp: App {
     @AppStorage("didFinishSetup", store: AppSettings.defaults) private var didFinishSetup = false
+    @AppStorage("appearance", store: AppSettings.defaults) private var appearance = Appearance.light
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -14,6 +15,7 @@ struct SarfiApp: App {
                 if didFinishSetup { RootTabView() } else { SetupFlowView() }
             }
             .tint(Theme.accent)
+            .preferredColorScheme(appearance.colorScheme)
             .task { CycleReset.runIfNeeded(context: Store.container.mainContext) }
         }
         .modelContainer(Store.container)

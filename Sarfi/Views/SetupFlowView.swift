@@ -181,6 +181,7 @@ struct SettingsView: View {
     @State private var payday = AppSettings.payday
     @State private var savings = AppSettings.savingsGoal
     @Query private var transactions: [Transaction]
+    @AppStorage("appearance", store: AppSettings.defaults) private var appearance = Appearance.light
 
     var body: some View {
         NavigationStack {
@@ -197,6 +198,11 @@ struct SettingsView: View {
                     NavigationLink("Automatic tracking setup") { ShortcutGuideView(banks: BankDirectory.all) {} }
                 }
                 Section {
+                    Picker("Appearance", selection: $appearance) {
+                        ForEach(Appearance.allCases) { Text($0.title).tag($0) }
+                    }
+                }
+                Section {
                     ShareLink(item: CSVExport.make(transactions), preview: SharePreview("sarfi.csv")) {
                         Label("Export to CSV", systemImage: "square.and.arrow.up")
                     }
@@ -207,6 +213,7 @@ struct SettingsView: View {
                     Text("Your messages and transactions stay on this iPhone. Sarfi has no server and never asks for bank logins.")
                 }
             }
+            .themedBackground()
             .navigationTitle("Settings")
         }
     }

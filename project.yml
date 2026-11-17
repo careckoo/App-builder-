@@ -41,6 +41,7 @@ targets:
     info:
       path: Sarfi/Resources/Info.plist
       properties:
+        # English name; the Arabic «صرفي» comes from Sarfi/Resources/InfoPlist.xcstrings.
         CFBundleDisplayName: Sarfi
         CFBundleLocalizations: [en, ar]
         UILaunchScreen: {}
@@ -69,6 +70,7 @@ targets:
     info:
       path: SarfiWidget/Info.plist
       properties:
+        # Arabic name from SarfiWidget/InfoPlist.xcstrings.
         CFBundleDisplayName: Sarfi
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension

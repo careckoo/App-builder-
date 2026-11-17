@@ -14,9 +14,63 @@
     "%lld days to payday": {
       "localizations": {
         "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld يوم حتى الراتب"
+          "variations": {
+            "plural": {
+              "zero": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "الراتب اليوم"
+                }
+              },
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "باقي يوم على الراتب"
+                }
+              },
+              "two": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "باقي يومين على الراتب"
+                }
+              },
+              "few": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "باقي %lld أيام على الراتب"
+                }
+              },
+              "many": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "باقي %lld يوم على الراتب"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "باقي %lld يوم على الراتب"
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld day to payday"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld days to payday"
+                }
+              }
+            }
           }
         }
       }
@@ -27,16 +81,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "+%1$@ %2$@%3$@"
-          }
-        }
-      }
-    },
-    "About": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "تقريباً"
           }
         }
       }
@@ -161,6 +205,16 @@
         }
       }
     },
+    "Appearance": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المظهر"
+          }
+        }
+      }
+    },
     "Apple Pay": {
       "localizations": {
         "ar": {
@@ -177,6 +231,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Apple Pay — ننصح فيه"
+          }
+        }
+      }
+    },
+    "Approximately": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تقريباً"
           }
         }
       }
@@ -337,6 +401,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "اختر بطاقاتك (كلها عادي)، واختر «تشغيل فوراً»، ثم اضغط «التالي»."
+          }
+        }
+      }
+    },
+    "Dark": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "داكن"
           }
         }
       }
@@ -561,6 +635,16 @@
         }
       }
     },
+    "Light": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فاتح"
+          }
+        }
+      }
+    },
     "Log Apple Pay purchase": {
       "localizations": {
         "ar": {
@@ -581,22 +665,12 @@
         }
       }
     },
-    "Sarfi": {
+    "Match iPhone": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "صرفي"
-          }
-        }
-      }
-    },
-    "Sarfi reads those messages and keeps your budget for you. No typing numbers, no bank passwords, and nothing leaves your iPhone.": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "صرفي يقرأ هذه الرسائل ويرتّب ميزانيتك عنك. بدون إدخال أرقام، بدون كلمات مرور البنك، وكل شيء يبقى على جوالك."
+            "value": "مثل الآيفون"
           }
         }
       }
@@ -696,7 +770,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "لا مصاريف اليوم بعد"
+            "value": "ما صرفت شي اليوم للحين"
           }
         }
       }
@@ -706,7 +780,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "ليست عملية مالية، تم التجاهل"
+            "value": "مو عملية مالية، تجاهلناها"
           }
         }
       }
@@ -726,7 +800,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "لا يوجد شيء بعد"
+            "value": "ما في شي للحين"
           }
         }
       }
@@ -736,7 +810,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "على المسار"
+            "value": "ماشي تمام"
           }
         }
       }
@@ -821,6 +895,16 @@
         }
       }
     },
+    "Plan": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الخطة"
+          }
+        }
+      }
+    },
     "Reads a bank SMS or alert email and adds the transaction to Sarfi.": {
       "localizations": {
         "ar": {
@@ -867,6 +951,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "الراتب"
+          }
+        }
+      }
+    },
+    "Sarfi": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صرفي"
+          }
+        }
+      }
+    },
+    "Sarfi reads those messages and keeps your budget for you. No typing numbers, no bank passwords, and nothing leaves your iPhone.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صرفي يقرأ هذه الرسائل ويرتّب ميزانيتك عنك. بدون إدخال أرقام، بدون كلمات مرور البنك، وكل شيء يبقى على جوالك."
           }
         }
       }
@@ -996,7 +1100,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "هذه الرسالة لا تبدو عملية مالية."
+            "value": "هالرسالة ما تبين إنها عملية مالية."
           }
         }
       }

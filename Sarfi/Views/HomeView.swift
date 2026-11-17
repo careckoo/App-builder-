@@ -42,6 +42,7 @@ struct HomeView: View {
                 }
                 .padding()
             }
+            .background(Theme.background)
             .navigationTitle("Sarfi")
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
@@ -76,16 +77,17 @@ struct SafeToSpendRing: View {
 
     var body: some View {
         ZStack {
-            Circle().stroke(.quaternary, lineWidth: 18)
+            Circle().stroke(Theme.ringTrack, lineWidth: 18)
             Circle()
                 .trim(from: 0, to: progress)
                 .stroke(Theme.color(for: safe.status), style: StrokeStyle(lineWidth: 18, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(.spring(duration: 0.8), value: progress)
             VStack(spacing: 4) {
-                Text("Safe to spend today").font(.subheadline).foregroundStyle(.secondary)
+                Text("Safe to spend today").font(.subheadline).foregroundStyle(Theme.textSecondary)
                 Text(Theme.aed(max(0, safe.today)))
                     .font(Theme.bigNumber(size: 44))
+                    .foregroundStyle(Theme.textPrimary)
                     .contentTransition(.numericText())
                     .minimumScaleFactor(0.6)
                 Text(message).font(.footnote.weight(.medium)).foregroundStyle(Theme.color(for: safe.status))
@@ -102,8 +104,8 @@ struct StatTile: View {
     let value: String
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(value).font(.title3.bold()).monospacedDigit()
+            Text(title).font(.caption).foregroundStyle(Theme.textSecondary)
+            Text(value).font(.title3.bold()).monospacedDigit().foregroundStyle(Theme.textPrimary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()

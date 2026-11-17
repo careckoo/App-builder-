@@ -68,6 +68,7 @@ struct BudgetsView: View {
                     Text("Rent, school fees, DEWA or TAQA, Tabby and Tamara installments. They're set aside before your daily amount is worked out, and ticked off when the bank message arrives.")
                 }
             }
+            .themedBackground()
             .navigationTitle("Plan")
             .sheet(isPresented: $addingBudget) { AddBudgetView() }
             .sheet(isPresented: $addingBill) { AddBillView() }

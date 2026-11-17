@@ -41,6 +41,7 @@ struct ActivityView: View {
                 }
             }
             .searchable(text: $search, prompt: "Search merchants or categories")
+            .themedBackground()
             .navigationTitle("Activity")
             .overlay {
                 if transactions.isEmpty {
@@ -63,7 +64,7 @@ struct TransactionDetailView: View {
         Form {
             Section {
                 LabeledContent("Amount", value: "\(tx.currency) \(tx.amount.formatted(.number.precision(.fractionLength(2))))")
-                if tx.currency != "AED" { LabeledContent("About", value: Theme.aed(tx.amountAED, decimals: 2)) }
+                if tx.currency != "AED" { LabeledContent("Approximately", value: Theme.aed(tx.amountAED, decimals: 2)) }
                 TextField("Merchant", text: $tx.merchant)
                 if let card = cardText { LabeledContent("Card", value: card) }
                 if let bank = tx.bankName { LabeledContent("Bank", value: bank) }

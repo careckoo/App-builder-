@@ -77,4 +77,5 @@ node prototype/parser.test.mjs    # same cases against the JS copy
 - [ ] Collect 20–30 **real, anonymised** SMS per bank and add them to the tests. The current samples follow typical UAE formats, but each bank's exact wording needs checking.
 - [ ] Confirm the SMS sender IDs on real phones (they differ between banks and sometimes change).
 - [ ] App icon, screenshots in Arabic and English, App Store listing in both languages.
+- [ ] TestFlight: Pro features are unlocked for every tester; there is no paywall yet. Add StoreKit before the App Store release.
 - [ ] Optional: Pro tier (StoreKit 2) for forecasts, AI monthly summary, shared family budget (CloudKit).
