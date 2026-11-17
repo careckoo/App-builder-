@@ -65,9 +65,10 @@ struct TransactionDetailView: View {
                 LabeledContent("Amount", value: "\(tx.currency) \(tx.amount.formatted(.number.precision(.fractionLength(2))))")
                 if tx.currency != "AED" { LabeledContent("About", value: Theme.aed(tx.amountAED, decimals: 2)) }
                 TextField("Merchant", text: $tx.merchant)
-                if let card = tx.cardLast4 { LabeledContent("Card", value: "•••• \(card)") }
+                if let card = cardText { LabeledContent("Card", value: card) }
                 if let bank = tx.bankName { LabeledContent("Bank", value: bank) }
                 LabeledContent("Date", value: tx.date.formatted(date: .abbreviated, time: .shortened))
+                LabeledContent("From") { Text(sourceLabel) }
             }
             Section("Category") {
                 Picker("Category", selection: Binding(get: { tx.category }, set: { setCategory($0) })) {
@@ -91,6 +92,26 @@ struct TransactionDetailView: View {
         }
         .navigationTitle(tx.merchant.isEmpty ? String(localized: "Transaction") : tx.merchant)
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// "FAB Cashback •••• 1234", "•••• 1234" or "FAB Cashback".
+    private var cardText: String? {
+        switch (tx.cardName, tx.cardLast4) {
+        case let (name?, last4?) where !name.hasSuffix(last4): "\(name) •••• \(last4)"
+        case let (name?, _): name
+        case let (nil, last4?): "•••• \(last4)"
+        case (nil, nil): nil
+        }
+    }
+
+    private var sourceLabel: LocalizedStringKey {
+        switch tx.source {
+        case .wallet: "Apple Pay"
+        case .sms: "SMS"
+        case .email: "Email"
+        case .manual: "Added by hand"
+        case .statement: "Bank statement"
+        }
     }
 
     /// Leave the screen first, then delete: this view must not render a deleted model.

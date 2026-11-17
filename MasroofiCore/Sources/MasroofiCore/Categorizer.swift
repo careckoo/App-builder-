@@ -90,7 +90,8 @@ public struct Categorizer: Sendable {
 
     public init(learned: [String: CategoryID] = [:]) { self.learned = learned }
 
-    /// Keyword → category. Lower-case, matched as substrings of the merchant name. Covers common UAE merchants.
+    /// Keyword → category. Lower-case. English keywords match whole words of the merchant name (with a
+    /// plural or possessive "s"); Arabic ones match as substrings. Covers common UAE merchants.
     public static let rules: [(String, CategoryID)] = [
         // Delivery before dining, so "TALABAT" isn't treated as a restaurant.
         ("talabat", .delivery), ("deliveroo", .delivery), ("noon food", .delivery), ("careem food", .delivery),
@@ -103,18 +104,18 @@ public struct Categorizer: Sendable {
         ("shake shack", .dining), ("restaurant", .dining), ("cafe", .dining), ("café", .dining), ("coffee", .dining),
         ("مطعم", .dining), ("مقهى", .dining), ("كافيه", .dining),
         ("careem", .transport), ("uber", .transport), ("rta", .transport), ("salik", .transport), ("darb", .transport),
-        ("itc ", .transport), ("parking", .transport), ("mawaqif", .transport), ("nol", .transport), ("taxi", .transport),
+        ("itc", .transport), ("parking", .transport), ("mawaqif", .transport), ("nol", .transport), ("taxi", .transport),
         ("كريم", .transport), ("سالك", .transport), ("مواقف", .transport),
         ("adnoc", .fuel), ("enoc", .fuel), ("eppco", .fuel), ("emarat", .fuel), ("petrol", .fuel), ("أدنوك", .fuel),
         ("taqa", .bills), ("addc", .bills), ("aadc", .bills), ("dewa", .bills), ("sewa", .bills), ("fewa", .bills), ("etihad wa", .bills),
         ("empower", .bills), ("tabreed", .bills), ("طاقة", .bills), ("ديوا", .bills),
-        ("etisalat", .telecom), ("e& ", .telecom), ("du ", .telecom), ("virgin mobile", .telecom), ("اتصالات", .telecom),
+        ("etisalat", .telecom), ("e&", .telecom), ("du", .telecom), ("virgin mobile", .telecom), ("اتصالات", .telecom),
         ("netflix", .subscriptions), ("spotify", .subscriptions), ("apple.com", .subscriptions), ("osn", .subscriptions),
         ("shahid", .subscriptions), ("youtube", .subscriptions), ("anghami", .subscriptions), ("icloud", .subscriptions),
         ("amazon prime", .subscriptions), ("disney", .subscriptions), ("chatgpt", .subscriptions), ("claude", .subscriptions),
         ("amazon", .shopping), ("noon", .shopping), ("namshi", .shopping), ("shein", .shopping), ("ikea", .family),
         ("centrepoint", .shopping), ("max fashion", .shopping), ("h&m", .shopping), ("zara", .shopping), ("mall", .shopping),
-        ("sharaf dg", .shopping), ("jumbo", .shopping), ("virgin megastore", .shopping), ("ace ", .family), ("home centre", .family),
+        ("sharaf dg", .shopping), ("jumbo", .shopping), ("virgin megastore", .shopping), ("ace", .family), ("home centre", .family),
         ("pharmacy", .health), ("aster", .health), ("life pharmacy", .health), ("boots", .health), ("hospital", .health),
         ("clinic", .health), ("seha", .health), ("mediclinic", .health), ("صيدلية", .health), ("مستشفى", .health),
         ("vox", .entertainment), ("reel cinema", .entertainment), ("novo", .entertainment), ("ferrari world", .entertainment),
@@ -130,15 +131,32 @@ public struct Categorizer: Sendable {
         switch parsed.kind {
         case .income, .refund: return .income
         case .withdrawal: return .cash
-        case .cardPayment: return .transfer
+        case .cardPayment, .ownTransfer: return .transfer
         case .transferOut, .purchase: break
         }
         guard let merchant = parsed.merchant?.lowercased() else {
             return parsed.kind == .transferOut ? .transfer : .other
         }
-        if let rule = learned.first(where: { merchant.contains($0.key.lowercased()) }) { return rule.value }
-        let padded = merchant + " "
-        if let hit = Self.rules.first(where: { padded.contains($0.0) }) { return hit.1 }
+        if let learnedHit = learnedCategory(for: merchant) { return learnedHit }
+        if let hit = Self.rules.first(where: { Self.ruleMatches(merchant, $0.0) }) { return hit.1 }
         return parsed.kind == .transferOut ? .transfer : .other
+    }
+
+    /// The person's own corrections: the exact merchant name first, then the longest learned name
+    /// found as whole words (so the result doesn't depend on dictionary order).
+    func learnedCategory(for merchant: String) -> CategoryID? {
+        let lowered = Dictionary(learned.map { ($0.key.lowercased(), $0.value) }, uniquingKeysWith: { a, _ in a })
+        if let exact = lowered[merchant] { return exact }
+        return lowered
+            .filter { !$0.key.isEmpty && BankMessageParser.containsWord(merchant, $0.key) }
+            .max { $0.key.count != $1.key.count ? $0.key.count < $1.key.count : $0.key > $1.key }?
+            .value
+    }
+
+    /// NOVOTEL is not "novo", AFTERNOON TEA is not "noon"; RESTAURANTS and MCDONALD'S still match.
+    static func ruleMatches(_ merchant: String, _ key: String) -> Bool {
+        if BankMessageParser.containsWord(merchant, key) { return true }
+        guard key.unicodeScalars.allSatisfy(\.isASCII) else { return false }
+        return BankMessageParser.containsWord(merchant, key + "s") || BankMessageParser.containsWord(merchant, key + "'s")
     }
 }

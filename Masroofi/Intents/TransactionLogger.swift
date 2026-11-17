@@ -3,12 +3,14 @@ import SwiftData
 import WidgetKit
 import MasroofiCore
 
-/// Turns a bank SMS into a saved transaction. Used by the Shortcut (App Intent),
-/// by "Paste a message" in the app, and by the share sheet.
+/// Turns a bank SMS or email, an Apple Pay purchase, or a manual entry into a saved transaction.
+/// Used by the Shortcuts actions (App Intents), by "Paste a message" and by quick-add in the app.
 @MainActor
 struct TransactionLogger {
     enum Outcome {
         case saved(Transaction, SafeToSpend)
+        /// Another source already logged this purchase; the existing record was filled in instead.
+        case merged(Transaction)
         case duplicate
         case notATransaction
     }
@@ -17,9 +19,55 @@ struct TransactionLogger {
 
     init(context: ModelContext = Store.container.mainContext) { self.context = context }
 
-    func log(message: String, sender: String?) throws -> Outcome {
+    /// A bank SMS or alert email. Email is recognised by a subject, an address as sender, or HTML.
+    func log(message: String, sender: String?, subject: String? = nil) throws -> Outcome {
+        let isEmail = MessageText.looksLikeEmail(message, sender: sender, subject: subject)
+        let text = isEmail ? MessageText.emailBody(message) : MessageText.stripHTML(message)
+        let parser = BankMessageParser()
+        var parsed = parser.parse(text, sender: sender)
+        // Some emails keep the verb only in the subject ("Debit card purchase") and list the details below.
+        if parsed == nil, let subject, !subject.trimmingCharacters(in: .whitespaces).isEmpty {
+            parsed = parser.parse(subject + ". " + text, sender: sender)
+        }
+        guard let parsed else { return .notATransaction }
+        return try save(parsed, via: isEmail ? .email : .sms, original: text)
+    }
+
+    /// An Apple Pay purchase from the Wallet "Transaction" automation. `amountText` is whatever
+    /// Shortcuts passes ("AED 45.50", "د.إ.‏ ٤٥٫٥٠"…).
+    func logWallet(amountText: String, merchant: String?, card: String?) throws -> Outcome {
+        guard let money = AmountText.parse(amountText) else { return .notATransaction }
+        let (amount, currency) = money
+        let name = merchant?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let cardName = card?.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A Wallet card name sometimes ends in the last digits ("Visa 1234").
+        var last4: String?
+        if let c = cardName, let r = c.range(of: #"[0-9]{4}$"#, options: .regularExpression) { last4 = String(c[r]) }
+        let parsed = ParsedTransaction(amount: amount, currency: currency, kind: .purchase,
+                                       merchant: name.isEmpty ? nil : name, cardLast4: last4, date: .now,
+                                       bankName: cardName.flatMap { BankDirectory.bankName(sender: nil, body: $0.lowercased()) })
+        return try save(parsed, via: .wallet, original: nil,
+                        cardName: (cardName?.isEmpty ?? true) ? nil : cardName)
+    }
+
+    /// Cash, or a card payment none of the automatic sources caught. The person chose the category.
+    func logManual(amount: Decimal, currency: String = "AED", merchant: String, category: CategoryID,
+                   date: Date = .now) throws -> Transaction {
         CycleReset.runIfNeeded(context: context)
-        guard let parsed = BankMessageParser().parse(message, sender: sender) else { return .notATransaction }
+        let name = merchant.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parsed = ParsedTransaction(amount: amount, currency: currency, kind: .purchase,
+                                       merchant: name.isEmpty ? nil : name, date: date)
+        let rate = AppSettings.fxToAED[currency] ?? 1
+        let tx = Transaction(parsed: parsed, category: category, amountAED: amount * rate, source: nil, via: .manual)
+        context.insert(tx)
+        try context.save()
+        WidgetCenter.shared.reloadAllTimelines()
+        return tx
+    }
+
+    private func save(_ parsed: ParsedTransaction, via source: TransactionSource, original: String?,
+                      cardName: String? = nil) throws -> Outcome {
+        CycleReset.runIfNeeded(context: context)
 
         // Ignore the same purchase arriving twice. Look up by fingerprint, not by "logged in the last
         // few minutes": the transaction date can be the bank's own timestamp or, for a pasted old
@@ -27,17 +75,37 @@ struct TransactionLogger {
         let fp = DuplicateDetector.fingerprint(parsed)
         let same = try context.fetch(FetchDescriptor<Transaction>(predicate: #Predicate { $0.fingerprint == fp }))
         let date = parsed.date ?? .now
-        if DuplicateDetector.isDuplicate(parsed, at: date, recent: same.map { ($0.fingerprint, $0.date) })
-            || same.contains(where: { $0.sourceMessage == message }) {
+        if DuplicateDetector.isDuplicate(parsed, at: date, recent: same.map { ($0.fingerprint, $0.date) }) {
             return .duplicate
         }
+        // The exact same text again is a repeat only when the text pins down one moment (its own
+        // time, or a balance). "AED 15 at ADNOC" can honestly happen twice in a day.
+        if let original, DuplicateDetector.canMatchByText(original, parsed: parsed) {
+            let key = DuplicateDetector.normalizedText(original)
+            if same.contains(where: { $0.sourceMessage.map(DuplicateDetector.normalizedText) == key }) { return .duplicate }
+        }
 
-        let rules = try context.fetch(FetchDescriptor<MerchantRule>())
-        let learned = Dictionary(rules.map { ($0.keyword, CategoryID(rawValue: $0.categoryRaw) ?? .other) },
-                                 uniquingKeysWith: { a, _ in a })
-        let category = Categorizer(learned: learned).category(for: parsed)
         let rate = AppSettings.fxToAED[parsed.currency] ?? 1
-        let tx = Transaction(parsed: parsed, category: category, amountAED: parsed.amount * rate, source: message)
+        let amountAED = parsed.amount * rate
+
+        // The same Apple Pay purchase can also arrive as the bank's SMS or email, a few seconds apart.
+        let lo = date.addingTimeInterval(-CrossSourceDuplicate.window)
+        let hi = date.addingTimeInterval(CrossSourceDuplicate.window)
+        let nearby = try context.fetch(FetchDescriptor<Transaction>(predicate: #Predicate { $0.date >= lo && $0.date <= hi }))
+        let incoming = CrossSourceDuplicate.Record(source: source, kind: parsed.kind, amount: parsed.amount,
+                                                   currency: parsed.currency, amountAED: amountAED, date: date,
+                                                   merchant: parsed.merchant ?? "")
+        if let i = CrossSourceDuplicate.match(for: incoming, among: nearby.map(\.record)) {
+            let existing = nearby[i]
+            try enrich(existing, with: parsed, fingerprint: fp, from: source, original: original, cardName: cardName)
+            try context.save()
+            WidgetCenter.shared.reloadAllTimelines()
+            return .merged(existing)
+        }
+
+        let category = try categorizer().category(for: parsed)
+        let tx = Transaction(parsed: parsed, category: category, amountAED: amountAED, source: original,
+                             via: source, cardName: cardName)
 
         // A payment that matches a bill (e.g. DEWA, school, Tabby) marks that bill paid instead of counting twice.
         if tx.isExpense, let bill = try matchingObligation(for: tx) {
@@ -51,13 +119,47 @@ struct TransactionLogger {
         return .saved(tx, try SafeToSpendCalculator(context: context).current())
     }
 
+    private func categorizer() throws -> Categorizer {
+        let rules = try context.fetch(FetchDescriptor<MerchantRule>())
+        let learned = Dictionary(rules.map { ($0.keyword, CategoryID(rawValue: $0.categoryRaw) ?? .other) },
+                                 uniquingKeysWith: { a, _ in a })
+        return Categorizer(learned: learned)
+    }
+
+    /// Keep one record and give it the best of both: Apple Pay has the clean merchant name and the
+    /// real moment; the bank message has the card digits, the bank and the balance.
+    private func enrich(_ tx: Transaction, with parsed: ParsedTransaction, fingerprint: String,
+                        from source: TransactionSource, original: String?, cardName: String?) throws {
+        if tx.cardLast4 == nil { tx.cardLast4 = parsed.cardLast4 }
+        if tx.bankName == nil { tx.bankName = parsed.bankName }
+        if tx.balanceAfter == nil { tx.balanceAfter = parsed.balanceAfter }
+        if tx.cardName == nil { tx.cardName = cardName }
+        if tx.sourceMessage == nil { tx.sourceMessage = original }
+        if tx.merchant.isEmpty, let m = parsed.merchant, !m.isEmpty {
+            tx.merchant = m
+            if tx.category == .other { tx.category = try categorizer().category(for: parsed) }
+        }
+        // A repeat of the bank message should now be caught by the fingerprint check.
+        if tx.source == .wallet && source != .wallet { tx.fingerprint = fingerprint }
+    }
+
     private func matchingObligation(for tx: Transaction) throws -> Obligation? {
+        // A pasted message from last cycle must not tick off this cycle's bill.
+        guard tx.date >= PayCycle.current(payday: AppSettings.payday).start else { return nil }
         let unpaid = try context.fetch(FetchDescriptor<Obligation>(predicate: #Predicate { !$0.isPaidThisCycle }))
-        let name = tx.merchant.lowercased()
         return unpaid.first { bill in
             let close = abs(NSDecimalNumber(decimal: bill.amount - tx.amountAED).doubleValue) <= max(5, NSDecimalNumber(decimal: bill.amount).doubleValue * 0.02)
-            return close && (bill.categoryRaw == tx.categoryRaw || name.contains(bill.title.lowercased()))
+            let title = bill.title.trimmingCharacters(in: .whitespaces)
+            let named = !title.isEmpty && TextMatch.containsWord(tx.merchant, title)
+            return close && (bill.categoryRaw == tx.categoryRaw || named)
         }
+    }
+}
+
+extension Transaction {
+    var record: CrossSourceDuplicate.Record {
+        CrossSourceDuplicate.Record(source: source, kind: kind, amount: amount, currency: currency,
+                                    amountAED: amountAED, date: date, merchant: merchant)
     }
 }
 

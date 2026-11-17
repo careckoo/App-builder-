@@ -85,8 +85,9 @@ struct SetupFlowView: View {
     }
 }
 
-/// Walks the person through creating the Message automation. Apple doesn't let apps create
-/// automations themselves, so this screen keeps it to a few clearly-shown taps, then confirms it worked.
+/// Walks the person through the Shortcuts automations. Apple doesn't let apps create automations
+/// or read other apps' notifications, so Masroofi offers three sources, each a few clearly-shown taps:
+/// Apple Pay (works with any bank card in Wallet), bank SMS, and bank alert emails.
 struct ShortcutGuideView: View {
     let banks: [Bank]
     var onDone: () -> Void
@@ -97,29 +98,61 @@ struct ShortcutGuideView: View {
 
     private var receivedTest: Bool { countAtStart.map { transactions.count > $0 } ?? false }
 
+    private var senders: String {
+        let ids = (banks.isEmpty ? BankDirectory.all : banks).flatMap(\.senderIDs).prefix(6)
+        return ids.joined(separator: ", ")
+    }
+
     var body: some View {
         List {
             Section {
-                step(1, "Open Shortcuts, tap Automation, then New Automation (+).")
-                step(2, "Choose Message. Next to Sender, add: \(banks.flatMap(\.senderIDs).prefix(6).joined(separator: ", ")).")
-                step(3, "Choose Run Immediately, then tap Next.")
-                step(4, "Search for Masroofi, choose “Log bank message”, then tap Message and pick Shortcut Input → Message.")
-                step(5, "Tap Done. Repeat for each bank, or add all of them as senders in one automation.")
+                Text("Banks are moving alerts into their own apps, and iPhone doesn't let other apps read those. Set up one or more of these instead.")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
+
+            Section {
+                step(1, "In Shortcuts, tap Automation, then New Automation (+), and choose Transaction.")
+                step(2, "Choose your cards (all of them is fine), choose Run Immediately, then tap Next.")
+                step(3, "Search for Masroofi and choose “Log Apple Pay purchase”.")
+                step(4, "Set Amount, Merchant and Card to the matching Shortcut Input (Amount, Merchant, Card or Pass). Tap Done.")
             } header: {
-                Text("Connect your bank messages — one time")
+                Label("Apple Pay — recommended", systemImage: "wallet.pass.fill")
             } footer: {
-                Text("If a bank's sender name is different on your phone, use the name exactly as it appears in Messages.")
+                Text("Works with any bank card in Apple Wallet, even if your bank only sends app notifications.")
+            }
+
+            Section {
+                step(1, "In Shortcuts, tap Automation, then New Automation (+), and choose Message.")
+                step(2, "Next to Sender, add: \(senders). Choose Run Immediately, then tap Next.")
+                step(3, "Search for Masroofi, choose “Log bank message or email”, then tap Message and pick Shortcut Input → Message.")
+            } header: {
+                Label("Bank SMS", systemImage: "message.fill")
+            } footer: {
+                Text("If your bank still sends SMS. Use the sender name exactly as it appears in Messages.")
+            }
+
+            Section {
+                step(1, "In your bank's app, turn on email alerts for card transactions.")
+                step(2, "In Shortcuts, tap Automation, then New Automation (+), and choose Email.")
+                step(3, "Next to Sender, add your bank's alert email address. Choose Run Immediately, then tap Next.")
+                step(4, "Search for Masroofi, choose “Log bank message or email”, then set Message to the email's body, and Sender and Subject to the email's sender and subject.")
+            } header: {
+                Label("Bank email alerts", systemImage: "envelope.fill")
+            } footer: {
+                Text("Catches online and card-swipe payments that don't go through Apple Pay.")
             }
 
             Section {
                 Button("Open Shortcuts", systemImage: "arrow.up.forward.app") {
                     UIApplication.shared.open(URL(string: "shortcuts://")!)
                 }
+            } footer: {
+                Text("Paid cash? Tap + on the Today screen to add it.")
             }
 
             Section("Check it works") {
                 if receivedTest {
-                    Label("Your first bank message arrived", systemImage: "checkmark.seal.fill").foregroundStyle(Theme.relaxed)
+                    Label("Your first transaction arrived", systemImage: "checkmark.seal.fill").foregroundStyle(Theme.relaxed)
                 } else {
                     Label("Waiting for your next card payment, or paste an old bank SMS from Today › Paste.",
                           systemImage: "hourglass")
@@ -161,7 +194,7 @@ struct SettingsView: View {
                         .onChange(of: savings) { AppSettings.savingsGoal = savings }
                 }
                 Section("Automatic tracking") {
-                    NavigationLink("Bank message setup") { ShortcutGuideView(banks: BankDirectory.all) {} }
+                    NavigationLink("Automatic tracking setup") { ShortcutGuideView(banks: BankDirectory.all) {} }
                 }
                 Section {
                     ShareLink(item: CSVExport.make(transactions), preview: SharePreview("masroofi.csv")) {
@@ -184,10 +217,10 @@ enum CSVExport {
         let iso = ISO8601DateFormatter()
         let rows = txs.sorted { $0.date < $1.date }.map { t in
             [iso.string(from: t.date), t.kind.rawValue, t.merchant, t.category.nameEN, "\(t.amount)", t.currency,
-             "\(t.amountAED)", t.cardLast4 ?? "", t.bankName ?? "", t.note]
+             "\(t.amountAED)", t.cardLast4 ?? "", t.bankName ?? "", t.note, t.sourceRaw]
                 .map { "\"\($0.replacingOccurrences(of: "\"", with: "\"\""))\"" }
                 .joined(separator: ",")
         }
-        return (["date,type,merchant,category,amount,currency,amount_aed,card,bank,note"] + rows).joined(separator: "\n")
+        return (["date,type,merchant,category,amount,currency,amount_aed,card,bank,note,source"] + rows).joined(separator: "\n")
     }
 }

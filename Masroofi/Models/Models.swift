@@ -2,7 +2,8 @@ import Foundation
 import SwiftData
 import MasroofiCore
 
-/// One money movement. Created automatically from a bank SMS, or by hand when someone pays cash.
+/// One money movement. Created automatically from a bank SMS or email or an Apple Pay purchase,
+/// or by hand when someone pays cash.
 @Model
 final class Transaction {
     var amount: Decimal = 0
@@ -13,6 +14,8 @@ final class Transaction {
     var merchant: String = ""
     var categoryRaw: String = CategoryID.other.rawValue
     var cardLast4: String?
+    /// The card's name in Apple Wallet ("FAB Cashback"), when the purchase came from Apple Pay.
+    var cardName: String?
     var bankName: String?
     var balanceAfter: Decimal?
     var date: Date = Date.now
@@ -21,6 +24,8 @@ final class Transaction {
     var sourceMessage: String?
     var fingerprint: String = ""
     var isFixedObligation: Bool = false
+    /// `TransactionSource` raw value. Records saved before this field existed came from SMS.
+    var sourceRaw: String = TransactionSource.sms.rawValue
 
     var kind: TransactionKind {
         get { TransactionKind(rawValue: kindRaw) ?? .purchase }
@@ -30,9 +35,17 @@ final class Transaction {
         get { CategoryID(rawValue: categoryRaw) ?? .other }
         set { categoryRaw = newValue.rawValue }
     }
+    var source: TransactionSource {
+        get { TransactionSource(rawValue: sourceRaw) ?? .sms }
+        set { sourceRaw = newValue.rawValue }
+    }
     var isExpense: Bool { kind == .purchase || kind == .withdrawal || kind == .transferOut }
 
-    init(parsed: ParsedTransaction, category: CategoryID, amountAED: Decimal, source: String?) {
+    /// - Parameters:
+    ///   - source: the original message text, kept on the device (nil for Apple Pay and manual entries).
+    ///   - via: where the transaction came from.
+    init(parsed: ParsedTransaction, category: CategoryID, amountAED: Decimal, source: String?,
+         via: TransactionSource = .sms, cardName: String? = nil) {
         amount = parsed.amount
         currency = parsed.currency
         self.amountAED = amountAED
@@ -45,6 +58,8 @@ final class Transaction {
         date = parsed.date ?? .now
         sourceMessage = source
         fingerprint = DuplicateDetector.fingerprint(parsed)
+        sourceRaw = via.rawValue
+        self.cardName = cardName
     }
 }
 

@@ -1,12 +1,32 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%@ %@%@. Left today: AED %@": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@%3$@. الباقي لليوم: %4$@ درهم"
+          }
+        }
+      }
+    },
     "%lld days to payday": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld يوم حتى الراتب"
+          }
+        }
+      }
+    },
+    "+%@ %@%@": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%1$@ %2$@%3$@"
           }
         }
       }
@@ -61,12 +81,52 @@
         }
       }
     },
+    "Add a payment": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أضف دفعة"
+          }
+        }
+      }
+    },
+    "Added by hand": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مضافة يدوياً"
+          }
+        }
+      }
+    },
+    "Adds an Apple Pay purchase from the Wallet Transaction automation to Masroofi.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يضيف الشراء بـ Apple Pay من أتمتة «المعاملة» في المحفظة إلى مصروفي."
+          }
+        }
+      }
+    },
     "Already logged": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
             "value": "مسجّلة من قبل"
+          }
+        }
+      }
+    },
+    "Already logged. Added the bank's details to it.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مسجّلة من قبل. أضفنا لها تفاصيل البنك."
           }
         }
       }
@@ -101,12 +161,42 @@
         }
       }
     },
+    "Apple Pay": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Pay"
+          }
+        }
+      }
+    },
+    "Apple Pay — recommended": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Pay — ننصح فيه"
+          }
+        }
+      }
+    },
     "Automatic tracking": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
             "value": "التتبّع التلقائي"
+          }
+        }
+      }
+    },
+    "Automatic tracking setup": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إعداد التتبّع التلقائي"
           }
         }
       }
@@ -121,12 +211,12 @@
         }
       }
     },
-    "Bank message setup": {
+    "Bank email alerts": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "إعداد رسائل البنك"
+            "value": "تنبيهات البنك بالإيميل"
           }
         }
       }
@@ -137,6 +227,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "رسائل البنك تظهر هنا تلقائياً."
+          }
+        }
+      }
+    },
+    "Bank SMS": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رسائل البنك النصية"
+          }
+        }
+      }
+    },
+    "Bank statement": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كشف حساب البنك"
+          }
+        }
+      }
+    },
+    "Banks are moving alerts into their own apps, and iPhone doesn't let other apps read those. Set up one or more of these instead.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "البنوك قاعدة تنقل التنبيهات لتطبيقاتها، والآيفون ما يسمح لتطبيق ثاني يقراها. فعّل وحدة أو أكثر من هذي الطرق بدالها."
           }
         }
       }
@@ -181,6 +301,16 @@
         }
       }
     },
+    "Catches online and card-swipe payments that don't go through Apple Pay.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يلقط الدفعات أونلاين وبالبطاقة اللي ما تمر عبر Apple Pay."
+          }
+        }
+      }
+    },
     "Category": {
       "localizations": {
         "ar": {
@@ -201,32 +331,12 @@
         }
       }
     },
-    "Choose Message. Next to Sender, add: %@.": {
+    "Choose your cards (all of them is fine), choose Run Immediately, then tap Next.": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "اختر «رسالة». بجانب «المرسل» أضف: %@."
-          }
-        }
-      }
-    },
-    "Choose Run Immediately, then tap Next.": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "اختر «تشغيل فوراً» ثم اضغط «التالي»."
-          }
-        }
-      }
-    },
-    "Connect your bank messages — one time": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "اربط رسائل بنكك — مرة وحدة بس"
+            "value": "اختر بطاقاتك (كلها عادي)، واختر «تشغيل فوراً»، ثم اضغط «التالي»."
           }
         }
       }
@@ -281,6 +391,16 @@
         }
       }
     },
+    "Email": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إيميل"
+          }
+        }
+      }
+    },
     "Export to CSV": {
       "localizations": {
         "ar": {
@@ -307,6 +427,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "الفواتير الثابتة"
+          }
+        }
+      }
+    },
+    "For cash, or a card payment your bank didn't send an SMS or email for.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "للدفع كاش، أو لدفعة بالبطاقة ما وصلك عنها رسالة أو إيميل من البنك."
+          }
+        }
+      }
+    },
+    "From": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المصدر"
           }
         }
       }
@@ -341,12 +481,52 @@
         }
       }
     },
-    "If a bank's sender name is different on your phone, use the name exactly as it appears in Messages.": {
+    "If your bank still sends SMS. Use the sender name exactly as it appears in Messages.": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "إذا كان اسم المرسل مختلف في جوالك، اكتبه بالضبط كما يظهر في الرسائل."
+            "value": "إذا بنكك للحين يرسل رسائل نصية. اكتب اسم المرسل بالضبط مثل ما يطلع في الرسائل."
+          }
+        }
+      }
+    },
+    "In Shortcuts, tap Automation, then New Automation (+), and choose Email.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "في «الاختصارات» اضغط «الأتمتة» ثم «أتمتة جديدة (+)»، واختر «البريد الإلكتروني»."
+          }
+        }
+      }
+    },
+    "In Shortcuts, tap Automation, then New Automation (+), and choose Message.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "في «الاختصارات» اضغط «الأتمتة» ثم «أتمتة جديدة (+)»، واختر «الرسالة»."
+          }
+        }
+      }
+    },
+    "In Shortcuts, tap Automation, then New Automation (+), and choose Transaction.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "في «الاختصارات» اضغط «الأتمتة» ثم «أتمتة جديدة (+)»، واختر «المعاملة»."
+          }
+        }
+      }
+    },
+    "In your bank's app, turn on email alerts for card transactions.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "من تطبيق بنكك، فعّل تنبيهات الإيميل لعمليات البطاقة."
           }
         }
       }
@@ -381,12 +561,22 @@
         }
       }
     },
-    "Log bank message": {
+    "Log Apple Pay purchase": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "تسجيل رسالة البنك"
+            "value": "تسجيل شراء Apple Pay"
+          }
+        }
+      }
+    },
+    "Log bank message or email": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تسجيل رسالة أو إيميل البنك"
           }
         }
       }
@@ -451,6 +641,16 @@
         }
       }
     },
+    "Moved %@ %@ between your accounts. It doesn't change today's amount.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم نقل %1$@ %2$@ بين حساباتك. ما يغيّر مبلغ اليوم."
+          }
+        }
+      }
+    },
     "Name, e.g. Rent": {
       "localizations": {
         "ar": {
@@ -467,6 +667,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "التالي"
+          }
+        }
+      }
+    },
+    "Next to Sender, add your bank's alert email address. Choose Run Immediately, then tap Next.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جنب «المرسل» أضف إيميل التنبيهات حق بنكك. اختر «تشغيل فوراً»، ثم اضغط «التالي»."
+          }
+        }
+      }
+    },
+    "Next to Sender, add: %@. Choose Run Immediately, then tap Next.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جنب «المرسل» أضف: %@. اختر «تشغيل فوراً»، ثم اضغط «التالي»."
           }
         }
       }
@@ -541,16 +761,6 @@
         }
       }
     },
-    "Open Shortcuts, tap Automation, then New Automation (+).": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "افتح تطبيق الاختصارات، اضغط «الأتمتة» ثم «أتمتة جديدة» (+)."
-          }
-        }
-      }
-    },
     "Original message": {
       "localizations": {
         "ar": {
@@ -567,6 +777,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "تجاوزت مبلغ اليوم — بكرة يتعدّل تلقائياً"
+          }
+        }
+      }
+    },
+    "Paid cash? Tap + on the Today screen to add it.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "دفعت كاش؟ اضغط + في شاشة «اليوم» وأضفها."
           }
         }
       }
@@ -601,12 +821,12 @@
         }
       }
     },
-    "Reads a bank SMS and adds the transaction to Masroofi.": {
+    "Reads a bank SMS or alert email and adds the transaction to Masroofi.": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "يقرأ رسالة البنك ويضيف العملية إلى مصروفي."
+            "value": "يقرأ رسالة البنك أو إيميل التنبيه ويضيف العملية إلى مصروفي."
           }
         }
       }
@@ -671,12 +891,32 @@
         }
       }
     },
-    "Search for Masroofi, choose “Log bank message”, then tap Message and pick Shortcut Input → Message.": {
+    "Search for Masroofi and choose “Log Apple Pay purchase”.": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "ابحث عن «مصروفي» واختر «تسجيل رسالة البنك»، ثم اضغط «الرسالة» واختر مُدخل الاختصار ← الرسالة."
+            "value": "ابحث عن «مصروفي» واختر «تسجيل شراء Apple Pay»."
+          }
+        }
+      }
+    },
+    "Search for Masroofi, choose “Log bank message or email”, then set Message to the email's body, and Sender and Subject to the email's sender and subject.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ابحث عن «مصروفي» واختر «تسجيل رسالة أو إيميل البنك»، وخلّ «الرسالة» على نص الإيميل، و«المرسل» و«الموضوع» على مرسل الإيميل وموضوعه."
+          }
+        }
+      }
+    },
+    "Search for Masroofi, choose “Log bank message or email”, then tap Message and pick Shortcut Input → Message.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ابحث عن «مصروفي» واختر «تسجيل رسالة أو إيميل البنك»، ثم اضغط «الرسالة» واختر مُدخل الاختصار ← الرسالة."
           }
         }
       }
@@ -701,12 +941,32 @@
         }
       }
     },
+    "Set Amount, Merchant and Card to the matching Shortcut Input (Amount, Merchant, Card or Pass). Tap Done.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "خلّ «المبلغ» و«المتجر» و«البطاقة» على ما يقابلها من مُدخل الاختصار (المبلغ، التاجر، البطاقة أو التذكرة). ثم اضغط «تم»."
+          }
+        }
+      }
+    },
     "Settings": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
             "value": "الإعدادات"
+          }
+        }
+      }
+    },
+    "SMS": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رسالة نصية"
           }
         }
       }
@@ -721,12 +981,12 @@
         }
       }
     },
-    "Tap Done. Repeat for each bank, or add all of them as senders in one automation.": {
+    "Subject": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "اضغط «تم». كرّر لكل بنك، أو أضف كل البنوك كمرسلين في أتمتة واحدة."
+            "value": "الموضوع"
           }
         }
       }
@@ -841,12 +1101,32 @@
         }
       }
     },
+    "Where (optional)": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "وين؟ (اختياري)"
+          }
+        }
+      }
+    },
     "Which banks text you?": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
             "value": "أي البنوك ترسل لك رسائل؟"
+          }
+        }
+      }
+    },
+    "Works with any bank card in Apple Wallet, even if your bank only sends app notifications.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يشتغل مع أي بطاقة بنك في Apple Wallet، حتى لو بنكك يرسل تنبيهات التطبيق بس."
           }
         }
       }
@@ -871,12 +1151,12 @@
         }
       }
     },
-    "Your first bank message arrived": {
+    "Your first transaction arrived": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "وصلت أول رسالة من البنك"
+            "value": "وصلت أول عملية"
           }
         }
       }

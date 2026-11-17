@@ -8,6 +8,7 @@ public enum TransactionKind: String, Codable, Sendable, CaseIterable {
     case income        // salary, transfer in, deposit
     case refund        // reversal / refund
     case cardPayment   // credit-card bill paid from your own account: not income, not spending
+    case ownTransfer   // between your own accounts, a fixed deposit, savings, or cash into a CDM: neutral
 }
 
 /// The result of reading one bank SMS. Every field except `amount` and `kind` is optional,
@@ -55,7 +56,7 @@ public struct BankMessageParser: Sendable {
             currency: currency,
             kind: kind,
             merchant: kind == .income ? Self.incomeSource(in: text)
-                    : kind == .cardPayment ? nil : Self.merchant(in: text),
+                    : (kind == .cardPayment || kind == .ownTransfer) ? nil : Self.merchant(in: text),
             cardLast4: Self.cardLast4(in: text),
             balanceAfter: Self.balance(in: text),
             date: Self.resolvedDate(in: text, receivedAt: receivedAt),
@@ -91,7 +92,10 @@ public struct BankMessageParser: Sendable {
     static let ignoreKeywords = [
         "otp", "one time password", "one-time password", "verification code", "do not share",
         "activation code", "declined", "insufficient", "failed", "unsuccessful", "offer", "offers", "win",
-        "رمز التحقق", "كلمة المرور لمرة واحدة", "رمز التفعيل", "لا تشارك", "مرفوضة", "رفض", "غير كاف", "عرض خاص"
+        "رمز التحقق", "كلمة المرور لمرة واحدة", "رمز التفعيل", "لا تشارك", "مرفوضة", "رفض", "غير كاف", "عرض خاص",
+        // Payment reminders and prize draws: no money moved.
+        "minimum payment due", "minimum amount due", "minimum due", "min. due", "min due", "is due on", "reminder", "please pay",
+        "الحد الأدنى", "تذكير", "مستحق الدفع", "مستحقة الدفع", "تاريخ الاستحقاق", "اربح", "السحب على", "جوائز", "جائزة"
     ]
 
     static let refundKeywords = ["refund", "refunded", "reversal", "reversed", "cashback", "مسترد", "استرداد", "استرجاع", "عكس"]
@@ -113,19 +117,46 @@ public struct BankMessageParser: Sendable {
     /// "your payment of AED2000.00 ... for card ending with *197 has been credited": the person paid
     /// their own credit-card bill. Counting it as income (or as spending) would distort safe-to-spend.
     static let cardPaymentPatterns = [
-        #"\bpayment\b.{0,80}?\bfor (?:your )?(?:credit )?card\b"#,
+        #"\b(?:payment|paid)\b.{0,80}?\b(?:for|to|towards) (?:your )?(?:credit )?card\b"#,
         #"\bcredit card (?:bill )?payment\b"#,
+        #"\bcredit card\b.{0,30}?\bpayment\b.{0,80}?\b(?:received|credited)\b"#,
         #"\bcard (?:bill )?payment\b.{0,60}?\b(?:received|credited)\b"#,
         #"\bpayment received for your (?:credit )?card\b"#,
+        #"\bcredited to (?:your )?credit card\b"#,
         #"سداد (?:ال)?بطاق"#,
+        #"سداد.{0,60}?(?:لبطاقت|(?:إلى|الى) بطاقت)"#,
         #"تم استلام دفعة.{0,80}?بطاق"#
     ]
 
+    /// A merchant named after "at" / لدى / عند ("card payment of AED 30 at STARBUCKS" is a purchase).
+    /// Not a date or phone number ("credited at 16/11/26", "call us at 600…") and not "with us at ADCB".
+    static let merchantAt = #"(?<!\bus )\bat\s+(?!us\b|your\b|the\b|any\b)[^\s0-9+(]|(?:لدى|عند)\s+[^\s0-9+(]"#
+
     static func isCardPayment(_ lower: String) -> Bool {
-        // Never when a merchant is named ("card payment of AED 30 at STARBUCKS" is a purchase).
-        if matches(#"\bat\s|لدى|عند"#, lower) { return false }
+        if matches(merchantAt, lower) { return false }
         return cardPaymentPatterns.contains { matches($0, lower) }
     }
+
+    /// Money moved between the person's own accounts, into or out of a fixed deposit or savings, or
+    /// cash put into a CDM (already counted when it was withdrawn). Not income, not spending.
+    static let ownTransferPatterns = [
+        #"\bfrom your (?:a/c|account|acct)\b.*\bto your (?:a/c|account|acct)\b"#,
+        #"\bto your (?:a/c|account|acct)\b.*\bfrom your (?:a/c|account|acct)\b"#,
+        #"\bown (?:a/c|account|accounts|acct)\b"#,
+        #"\bbetween (?:your|own) accounts\b"#,
+        #"\b(?:fixed|term) deposit\b"#,
+        #"\bsavings? spaces?\b"#,
+        #"\b(?:transfer(?:red)?|moved|sent|tfr)\b.{0,40}?\b(?:to|into|from)\b.{0,15}?\bsavings? (?:account|a/c|pot)\b"#,
+        #"\bcdm\b"#,
+        #"\bcash deposit\b"#,
+        #"من حسابك.*(?:إلى|الى) حسابك"#,
+        #"بين حساباتك"#,
+        #"وديعة"#,
+        #"(?:إيداع|ايداع) نقدي"#,
+        #"(?:تحويل|حول).{0,40}?حساب (?:ال)?(?:توفير|ادخار)"#
+    ]
+
+    static func isOwnTransfer(_ lower: String) -> Bool { ownTransferPatterns.contains { matches($0, lower) } }
 
     static func matches(_ pattern: String, _ s: String) -> Bool {
         s.range(of: pattern, options: .regularExpression) != nil
@@ -133,6 +164,7 @@ public struct BankMessageParser: Sendable {
 
     static func kind(for lower: String) -> TransactionKind? {
         if containsAny(lower, refundKeywords) { return .refund }
+        if isOwnTransfer(lower) { return .ownTransfer }
         if containsAny(lower, withdrawalKeywords) { return .withdrawal }
         if isCardPayment(lower) { return .cardPayment }
         // "transfer to" must win over "debited" ("AED 500 debited ... transferred to Ahmed").
@@ -169,7 +201,7 @@ public struct BankMessageParser: Sendable {
 
     /// Words that, right before an amount, mean "this is not the transaction amount".
     static let balanceMarkers = [
-        "balance", "bal", "avl", "avail", "available", "limit", "outstanding", "due",
+        "balance", "bal", "avl", "avlbal", "avail", "available", "limit", "outstanding", "due",
         "الرصيد", "رصيد", "المتاح", "الحد", "المستحق"
     ]
 
@@ -210,7 +242,8 @@ public struct BankMessageParser: Sendable {
     static func isPrecededByBalanceMarker(_ m: AmountMatch, in text: String) -> Bool {
         let start = text.index(m.range.lowerBound, offsetBy: -min(28, text.distance(from: text.startIndex, to: m.range.lowerBound)))
         let before = text[start..<m.range.lowerBound].lowercased()
-        return balanceMarkers.contains { before.contains($0) }
+        // Whole words for English markers: "BALI RESTAURANT" and "UNLIMITED BURGERS" are merchants.
+        return containsAny(before, balanceMarkers)
     }
 
     static func transactionAmount(in text: String) -> (Decimal, String)? {
@@ -243,7 +276,7 @@ public struct BankMessageParser: Sendable {
     }
 
     static func merchant(in text: String) -> String? {
-        let stops = #"(?=\s+on\s|\s+from\s|\s+has\s|\s+(?:was|is)\s|\s+من\s+(?:حساب|بطاق)|\s+بتاريخ|\s+في\s+[0-9]|\s+بقيمة|\s+[0-9]{1,2}[/-]|\.\s|\.$|(?:,\s*|\s+)(?:avl|avail|available|bal\b|balance|الرصيد|رصيد)|$)"#
+        let stops = #"(?=\s+on\s|\s+from\s|\s+has\s|\s+(?:was|is)\s|\s+من\s+(?:حساب|بطاق)|\s+بتاريخ|\s+في\s+[0-9]|\s+بقيمة|\s+[0-9]{1,2}[/-]|\.\s|\.$|(?:,\s*|\s+)(?:avl|avail|available|bal\b|balance|الرصيد|رصيد)|\s+(?:for\s+)?(?:"# + currencyAlternation + #")\s?[0-9]|$)"#
         let patterns = [
             #"\bat\s+(.+?)"# + stops,
             #"لدى\s+(.+?)"# + stops,

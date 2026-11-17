@@ -30,8 +30,9 @@ public enum BankDirectory {
     ]
 
     public static func bankName(sender: String?, body: String) -> String? {
+        // The sender exactly, or as a whole word ("AD-ADCB", "alerts@adcb.com"), never inside another name.
         if let s = sender?.lowercased(),
-           let b = all.first(where: { $0.senderIDs.contains { s.contains($0.lowercased()) } }) {
+           let b = all.first(where: { $0.senderIDs.contains { s == $0.lowercased() || BankMessageParser.containsWord(s, $0.lowercased()) } }) {
             return b.nameEN
         }
         // Many banks sign the message body ("- ADCB", "Emirates NBD"). Whole words only there:

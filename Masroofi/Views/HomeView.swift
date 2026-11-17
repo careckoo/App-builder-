@@ -8,6 +8,7 @@ struct HomeView: View {
     @Query(sort: \Transaction.date, order: .reverse) private var transactions: [Transaction]
     @State private var safe: SafeToSpend?
     @State private var showPaste = false
+    @State private var showQuickAdd = false
 
     private var todays: [Transaction] {
         let start = Calendar.dubai.startOfDay(for: .now)
@@ -43,9 +44,13 @@ struct HomeView: View {
             }
             .navigationTitle("Masroofi")
             .toolbar {
-                Button { showPaste = true } label: { Label("Paste a message", systemImage: "doc.on.clipboard") }
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button { showPaste = true } label: { Label("Paste a message", systemImage: "doc.on.clipboard") }
+                    Button { showQuickAdd = true } label: { Label("Add a payment", systemImage: "plus") }
+                }
             }
             .sheet(isPresented: $showPaste) { PasteMessageView() }
+            .sheet(isPresented: $showQuickAdd) { QuickAddView().presentationDetents([.medium, .large]) }
             .task(id: transactions.count) { safe = try? SafeToSpendCalculator(context: context).current() }
         }
     }
@@ -126,9 +131,11 @@ struct TransactionRow: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text((tx.isExpense ? "−" : tx.kind == .cardPayment ? "" : "+") + tx.amount.formatted(.number.precision(.fractionLength(2))))
+                // Card bill payments and moves between your own accounts are neither spending nor income: no sign.
+                let neutral = tx.kind == .cardPayment || tx.kind == .ownTransfer
+                Text((tx.isExpense ? "−" : neutral ? "" : "+") + tx.amount.formatted(.number.precision(.fractionLength(2))))
                     .font(.body.weight(.semibold)).monospacedDigit()
-                    .foregroundStyle(tx.isExpense || tx.kind == .cardPayment ? Color.primary : Theme.relaxed)
+                    .foregroundStyle(tx.isExpense || neutral ? Color.primary : Theme.relaxed)
                 Text(tx.currency).font(.caption2).foregroundStyle(.secondary)
             }
         }
@@ -179,5 +186,68 @@ struct PasteMessageView: View {
                 }
             }
         }
+    }
+}
+
+/// For cash and card swipes that no automatic source caught: amount, optional merchant, category.
+struct QuickAddView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
+    @Environment(\.locale) private var locale
+    @State private var amountText = ""
+    @State private var merchant = ""
+    @State private var category: CategoryID = .other
+    /// Until the person picks a category, guess it from the merchant name as they type.
+    @State private var pickedCategory = false
+    @FocusState private var amountFocused: Bool
+
+    /// Reads "45.5", "٤٥٫٥" or "1,250" the same way the Apple Pay action does.
+    private var amount: Decimal? { AmountText.parse(amountText)?.amount }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Amount (AED)", text: $amountText)
+                        .keyboardType(.decimalPad)
+                        .focused($amountFocused)
+                        .font(.title2.bold())
+                    TextField("Where (optional)", text: $merchant)
+                        .onChange(of: merchant) { guessCategory() }
+                    Picker("Category", selection: Binding(get: { category }, set: { category = $0; pickedCategory = true })) {
+                        ForEach(CategoryID.allCases.filter { $0 != .income && $0 != .transfer }, id: \.self) { c in
+                            Label(locale.language.languageCode == "ar" ? c.nameAR : c.nameEN, systemImage: c.symbol).tag(c)
+                        }
+                    }
+                } footer: {
+                    Text("For cash, or a card payment your bank didn't send an SMS or email for.")
+                }
+            }
+            .navigationTitle("Add a payment")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { save() }.disabled(amount == nil)
+                }
+            }
+            .onAppear { amountFocused = true }
+        }
+    }
+
+    private func guessCategory() {
+        guard !pickedCategory else { return }
+        let name = merchant.trimmingCharacters(in: .whitespaces)
+        let rules = (try? context.fetch(FetchDescriptor<MerchantRule>())) ?? []
+        let learned = Dictionary(rules.map { ($0.keyword, CategoryID(rawValue: $0.categoryRaw) ?? .other) },
+                                 uniquingKeysWith: { a, _ in a })
+        category = name.isEmpty ? .other
+            : Categorizer(learned: learned).category(for: ParsedTransaction(amount: 1, merchant: name))
+    }
+
+    private func save() {
+        guard let amount else { return }
+        _ = try? TransactionLogger(context: context).logManual(amount: amount, merchant: merchant, category: category)
+        dismiss()
     }
 }

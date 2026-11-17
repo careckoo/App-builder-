@@ -95,11 +95,15 @@ final class BankMessageParserTests: XCTestCase {
 
     // MARK: - Short English keywords match whole words only
 
-    func testCashDepositIsIncomeNotPurchase() throws {
-        // "pos" used to match inside "deposit".
+    func testCashDepositIsOwnTransferNotPurchase() throws {
+        // "pos" used to match inside "deposit". Cash put into a CDM was already counted when it was
+        // withdrawn, so it is a move between your own money, not income.
         let t = try XCTUnwrap(parser.parse("Cash deposit of AED 500.00 via CDM at ADCB MUSAFFAH"))
         XCTAssertEqual(t.amount, 500)
-        XCTAssertEqual(t.kind, .income)
+        XCTAssertEqual(t.kind, .ownTransfer)
+        XCTAssertNil(t.merchant)
+        XCTAssertFalse(t.isExpense)
+        XCTAssertEqual(Categorizer().category(for: t), .transfer)
     }
 
     func testTreatmentIsPurchaseNotWithdrawal() throws {
@@ -138,6 +142,150 @@ final class BankMessageParserTests: XCTestCase {
         let t = try XCTUnwrap(parser.parse("Your card payment of AED 30.00 at STARBUCKS was successful"))
         XCTAssertEqual(t.kind, .purchase)
         XCTAssertEqual(t.merchant, "STARBUCKS")
+    }
+
+    // MARK: - B1: "at" before a date, a phone number or "us" is not a merchant
+
+    func testCardPaymentCreditedAtDate() throws {
+        let t = try XCTUnwrap(parser.parse("Your payment of AED 2,000.00 has been credited at 16/11/26 15:38 for card ending 5678."))
+        XCTAssertEqual(t.kind, .cardPayment)
+        XCTAssertNil(t.merchant)
+    }
+
+    func testCardPaymentCallUsAtPhone() throws {
+        let t = try XCTUnwrap(parser.parse(
+            "Dear Customer, your payment of AED2000.00 for card ending with *197 has been credited. For queries call us at 600 50 3335"))
+        XCTAssertEqual(t.kind, .cardPayment)
+        XCTAssertEqual(t.cardLast4, "197")
+    }
+
+    func testCardPaymentBankingWithUsAt() throws {
+        let t = try XCTUnwrap(parser.parse(
+            "Your payment of AED 2,000.00 for your credit card ending 5678 has been received. Thank you for banking with us at ADCB."))
+        XCTAssertEqual(t.kind, .cardPayment)
+    }
+
+    // MARK: - B2: card bill wordings
+
+    func testCardBillWordings() throws {
+        let messages = [
+            "AED 2,000.00 has been debited from your account XXX9012 towards your credit card payment.",
+            "Payment of AED 2,000.00 received towards your credit card ending 5678",
+            "Thank you for your payment of AED 2,000.00 to your credit card",
+            "AED 2,000 paid to your credit card ending 5678",
+            "Your Credit card XXX5678 payment of AED 2000 has been received",
+            "AED 2,000.00 credited to your credit card ending 5678",
+            "Payment of AED 2000 towards card ending 5678 credited.",
+            "تم سداد مبلغ 2000 درهم لبطاقتك"
+        ]
+        for m in messages {
+            let t = try XCTUnwrap(parser.parse(m), m)
+            XCTAssertEqual(t.kind, .cardPayment, m)
+            XCTAssertEqual(t.amount, 2000, m)
+            XCTAssertEqual(Categorizer().category(for: t), .transfer, m)
+        }
+    }
+
+    // MARK: - B3/B4: between your own accounts
+
+    func testOwnTransfers() throws {
+        let messages = [
+            "AED 5,000.00 transferred from your account XXX9012 to your account XXX3456 on 17/11/2026.",
+            "AED 1,000.00 transferred to own account XXX3456",
+            "تم تحويل مبلغ 1,000 درهم من حسابك 9012 إلى حسابك 3456",
+            "Your Fixed Deposit of AED 10,000.00 has matured and been credited to your account XXX9012.",
+            "AED 10,000.00 debited from your account XXX9012 for a new Fixed Deposit.",
+            "AED 500.00 moved to your Saving Space Holiday.",
+            "AED 2,000.00 transferred to your savings account XXX7777."
+        ]
+        for m in messages {
+            let t = try XCTUnwrap(parser.parse(m), m)
+            XCTAssertEqual(t.kind, .ownTransfer, m)
+            XCTAssertFalse(t.isExpense, m)
+            XCTAssertNil(t.merchant, m)
+            XCTAssertEqual(Categorizer().category(for: t), .transfer, m)
+        }
+    }
+
+    func testSalaryIntoSavingsAccountStaysIncome() throws {
+        let t = try XCTUnwrap(parser.parse("AED 18,500.00 salary credited to your savings account XXX7777."))
+        XCTAssertEqual(t.kind, .income)
+    }
+
+    // MARK: - A6/W2/W3: reminders, statements and prize draws are not transactions
+
+    func testIgnoresRemindersStatementsAndDraws() {
+        let messages = [
+            "Minimum payment due AED 250.00 on your card ending 5678. Please pay by 05/12/2026.",
+            "Reminder: your Tabby payment of AED 200.00 is due on 20/11/2026.",
+            "Your credit card statement is ready. Statement balance AED 5,000.00, minimum due AED 250.00, due date 05/12/2026.",
+            "Your credit card payment of AED 2,000.00 is due on 25/11/2026.",
+            "تذكير: يرجى سداد الحد الأدنى 250 درهم لبطاقتك",
+            "Your credit limit has been increased to AED 20,000.00",
+            "اربح جوائز قيمة! استخدم بطاقتك بقيمة 100 درهم وادخل السحب",
+            "ادخل السحب على جوائز بقيمة 50,000 درهم عند استخدام بطاقتك"
+        ]
+        for m in messages { XCTAssertNil(parser.parse(m), m) }
+    }
+
+    // MARK: - B7: balance markers are whole words
+
+    func testMerchantsContainingBalanceWords() throws {
+        let cases: [(String, Decimal, String)] = [
+            ("Purchase at BALI RESTAURANT AED 120.00", 120, "BALI RESTAURANT"),
+            ("Trx at GLOBAL VILLAGE AED 50.00 approved", 50, "GLOBAL VILLAGE"),
+            ("Purchase at UNLIMITED BURGERS for AED 50.00", 50, "UNLIMITED BURGERS"),
+            ("Purchase at FONDUE HOUSE for AED 50.00", 50, "FONDUE HOUSE")
+        ]
+        for (m, amount, merchant) in cases {
+            let t = try XCTUnwrap(parser.parse(m), m)
+            XCTAssertEqual(t.kind, .purchase, m)
+            XCTAssertEqual(t.amount, amount, m)
+            XCTAssertEqual(t.merchant, merchant, m)
+        }
+    }
+
+    // MARK: - B8/B9: categoriser matches whole words
+
+    func testCategoryKeywordsAreWholeWords() throws {
+        let cases: [(String, CategoryID)] = [
+            ("NOVOTEL ABU DHABI", .other), ("AFTERNOON TEA LOUNGE", .other), ("MASTER BAKERS", .other),
+            ("PALACE DOWNTOWN", .other), ("MCDONALD'S", .dining), ("APPLE.COM/BILL", .subscriptions),
+            ("H&M", .shopping), ("ITC", .transport), ("DU ONLINE", .telecom), ("STARBUCKS COFFEE", .dining)
+        ]
+        for (merchant, expected) in cases {
+            let t = try XCTUnwrap(parser.parse("Card ending 1234 was used for AED 50.00 at \(merchant)"), merchant)
+            XCTAssertEqual(Categorizer().category(for: t), expected, merchant)
+        }
+    }
+
+    func testLearnedRulesExactThenLongestWholeWord() {
+        func tx(_ m: String) -> ParsedTransaction { ParsedTransaction(amount: 10, merchant: m) }
+        XCTAssertEqual(Categorizer(learned: ["cafe x": .family, "cafe": .dining]).category(for: tx("CAFE X")), .family)
+        XCTAssertEqual(Categorizer(learned: ["al maya": .dining, "al maya supermarket": .family])
+            .category(for: tx("AL MAYA SUPERMARKET MARINA")), .family)
+        XCTAssertEqual(Categorizer(learned: ["novo": .entertainment]).category(for: tx("NOVOTEL")), .other)
+    }
+
+    // MARK: - W7: sender IDs match exactly or as whole words
+
+    func testSenderMatching() throws {
+        let m = "Card ending 1234 was used for AED 10.00 at X"
+        XCTAssertEqual(try XCTUnwrap(parser.parse(m, sender: "AD-ADCB")).bankName, "ADCB")
+        XCTAssertEqual(try XCTUnwrap(parser.parse(m, sender: "ADCBAlert")).bankName, "ADCB")
+        XCTAssertNil(try XCTUnwrap(parser.parse(m, sender: "FABULOUSCO")).bankName)
+    }
+
+    // MARK: - B5: exact-text duplicates only when the text pins down one moment
+
+    func testExactTextMatchNeedsTimeOrBalance() throws {
+        let plain = "Card ending 1234 was used for AED 15.00 at ADNOC"
+        XCTAssertFalse(DuplicateDetector.canMatchByText(plain, parsed: try XCTUnwrap(parser.parse(plain))))
+        let timed = "Trx. of AED50.00 on your card ending *822 at etisalat Digital App, UAE is Approved. Trx Date: 16/11/26 15:38"
+        XCTAssertTrue(DuplicateDetector.canMatchByText(timed, parsed: try XCTUnwrap(parser.parse(timed))))
+        let withBalance = "Card ending 1234 was used for AED 15.00 at ADNOC. Avl Bal AED 900.00"
+        XCTAssertTrue(DuplicateDetector.canMatchByText(withBalance, parsed: try XCTUnwrap(parser.parse(withBalance))))
+        XCTAssertEqual(DuplicateDetector.normalizedText("AED ١٥٫٠٠\r\n at  ADNOC"), DuplicateDetector.normalizedText("aed 15.00 at ADNOC"))
     }
 
     // MARK: - Real messages (one UAE bank, Nov 2026), verbatim

@@ -4,7 +4,10 @@
 
 const IGNORE = ["otp", "one time password", "one-time password", "verification code", "do not share",
   "activation code", "declined", "insufficient", "failed", "unsuccessful", "offer", "offers", "win",
-  "رمز التحقق", "كلمة المرور لمرة واحدة", "رمز التفعيل", "لا تشارك", "مرفوضة", "رفض", "غير كاف", "عرض خاص"];
+  "رمز التحقق", "كلمة المرور لمرة واحدة", "رمز التفعيل", "لا تشارك", "مرفوضة", "رفض", "غير كاف", "عرض خاص",
+  // Payment reminders and prize draws: no money moved.
+  "minimum payment due", "minimum amount due", "minimum due", "min. due", "min due", "is due on", "reminder", "please pay",
+  "الحد الأدنى", "تذكير", "مستحق الدفع", "مستحقة الدفع", "تاريخ الاستحقاق", "اربح", "السحب على", "جوائز", "جائزة"];
 const REFUND = ["refund", "refunded", "reversal", "reversed", "cashback", "مسترد", "استرداد", "استرجاع", "عكس"];
 const WITHDRAWAL = ["atm", "cash withdrawal", "withdrawn", "withdrawal", "سحب نقدي", "سحب", "صراف"];
 const INCOME = ["credited", "has been deposited", "deposit", "received", "salary", "transfer from", "inward",
@@ -20,18 +23,34 @@ const STRONG_DEBIT = ["debited", "تم خصم", "used for", "purchase", "شرا�
 const CURRENCIES = [["AED","AED"],["Dhs.","AED"],["Dhs","AED"],["DHS","AED"],["Dh","AED"],["درهم","AED"],["د.إ","AED"],["د.ا","AED"],
   ["USD","USD"],["US$","USD"],["دولار","USD"],["EUR","EUR"],["GBP","GBP"],["SAR","SAR"],["ريال","SAR"],
   ["INR","INR"],["PKR","PKR"],["EGP","EGP"],["QAR","QAR"],["OMR","OMR"],["KWD","KWD"],["BHD","BHD"]];
-const BALANCE_MARKERS = ["balance", "bal", "avl", "avail", "available", "limit", "outstanding", "due",
+const BALANCE_MARKERS = ["balance", "bal", "avl", "avlbal", "avail", "available", "limit", "outstanding", "due",
   "الرصيد", "رصيد", "المتاح", "الحد", "المستحق"];
 const NUM = String.raw`([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]{1,3})?|[0-9]+(?:\.[0-9]{1,3})?)`;
 const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const CUR = CURRENCIES.map(c => esc(c[0])).join("|");
 
 // A credit-card bill paid from the person's own account: not income, not spending.
-// Never when a merchant is named ("card payment of AED 30 at STARBUCKS" is a purchase).
-const CARD_PAYMENT = [/\bpayment\b.{0,80}?\bfor (?:your )?(?:credit )?card\b/, /\bcredit card (?:bill )?payment\b/,
+const CARD_PAYMENT = [/\b(?:payment|paid)\b.{0,80}?\b(?:for|to|towards) (?:your )?(?:credit )?card\b/,
+  /\bcredit card (?:bill )?payment\b/, /\bcredit card\b.{0,30}?\bpayment\b.{0,80}?\b(?:received|credited)\b/,
   /\bcard (?:bill )?payment\b.{0,60}?\b(?:received|credited)\b/, /\bpayment received for your (?:credit )?card\b/,
-  /سداد (?:ال)?بطاق/, /تم استلام دفعة.{0,80}?بطاق/];
-const isCardPayment = lower => !/\bat\s|لدى|عند/.test(lower) && CARD_PAYMENT.some(re => re.test(lower));
+  /\bcredited to (?:your )?credit card\b/,
+  /سداد (?:ال)?بطاق/, /سداد.{0,60}?(?:لبطاقت|(?:إلى|الى) بطاقت)/, /تم استلام دفعة.{0,80}?بطاق/];
+// A merchant named after "at" / لدى / عند makes it a purchase ("card payment of AED 30 at STARBUCKS").
+// Not a date or phone number ("credited at 16/11/26", "call us at 600…") and not "with us at ADCB".
+const MERCHANT_AT = /(?<!\bus )\bat\s+(?!us\b|your\b|the\b|any\b)[^\s0-9+(]|(?:لدى|عند)\s+[^\s0-9+(]/;
+const isCardPayment = lower => !MERCHANT_AT.test(lower) && CARD_PAYMENT.some(re => re.test(lower));
+
+// Money moved between the person's own accounts, into or out of a fixed deposit or savings, or cash
+// put into a CDM (already counted when it was withdrawn). Not income, not spending.
+const OWN_TRANSFER = [/\bfrom your (?:a\/c|account|acct)\b.*\bto your (?:a\/c|account|acct)\b/,
+  /\bto your (?:a\/c|account|acct)\b.*\bfrom your (?:a\/c|account|acct)\b/,
+  /\bown (?:a\/c|account|accounts|acct)\b/, /\bbetween (?:your|own) accounts\b/,
+  /\b(?:fixed|term) deposit\b/, /\bsavings? spaces?\b/,
+  /\b(?:transfer(?:red)?|moved|sent|tfr)\b.{0,40}?\b(?:to|into|from)\b.{0,15}?\bsavings? (?:account|a\/c|pot)\b/,
+  /\bcdm\b/, /\bcash deposit\b/,
+  /من حسابك.*(?:إلى|الى) حسابك/, /بين حساباتك/, /وديعة/, /(?:إيداع|ايداع) نقدي/,
+  /(?:تحويل|حول).{0,40}?حساب (?:ال)?(?:توفير|ادخار)/];
+const isOwnTransfer = lower => OWN_TRANSFER.some(re => re.test(lower));
 
 // ASCII keywords match on word edges ("pos" must not hit "deposit", "atm" not "treatment").
 // Arabic keywords stay plain substrings, because Arabic attaches prefixes like و / ب / ال.
@@ -61,6 +80,7 @@ export function normalize(s) {
 
 function kindFor(lower) {
   if (has(lower, REFUND)) return "refund";
+  if (isOwnTransfer(lower)) return "ownTransfer";
   if (has(lower, WITHDRAWAL)) return "withdrawal";
   if (isCardPayment(lower)) return "cardPayment";
   if (has(lower, TRANSFER_OUT) && !lower.includes("إلى حسابك") && !lower.includes("to your account")) return "transferOut";
@@ -93,7 +113,8 @@ function allAmounts(text) {
 
 function precededByBalance(m, text) {
   const before = text.slice(Math.max(0, m.start - 28), m.start).toLowerCase();
-  return BALANCE_MARKERS.some(w => before.includes(w));
+  // Whole words for English markers: "BALI RESTAURANT" and "UNLIMITED BURGERS" are merchants.
+  return has(before, BALANCE_MARKERS);
 }
 
 function transactionAmount(text) {
@@ -131,7 +152,7 @@ function cleanMerchant(s) {
 }
 
 function merchant(text) {
-  const stops = String.raw`(?=\s+on\s|\s+from\s|\s+has\s|\s+(?:was|is)\s|\s+من\s+(?:حساب|بطاق)|\s+بتاريخ|\s+في\s+[0-9]|\s+بقيمة|\s+[0-9]{1,2}[/-]|\.\s|\.$|(?:,\s*|\s+)(?:avl|avail|available|bal\b|balance|الرصيد|رصيد)|$)`;
+  const stops = String.raw`(?=\s+on\s|\s+from\s|\s+has\s|\s+(?:was|is)\s|\s+من\s+(?:حساب|بطاق)|\s+بتاريخ|\s+في\s+[0-9]|\s+بقيمة|\s+[0-9]{1,2}[/-]|\.\s|\.$|(?:,\s*|\s+)(?:avl|avail|available|bal\b|balance|الرصيد|رصيد)|\s+(?:for\s+)?(?:${CUR})\s?[0-9]|$)`;
   const pats = [String.raw`\bat\s+(.+?)`, String.raw`لدى\s+(.+?)`, String.raw`عند\s+(.+?)`, String.raw`\bto\s+(.+?)`,
     String.raw`إلى\s+(.+?)`, String.raw`\bfrom\s+(.+?)`, String.raw`\bfor\s+([A-Z][A-Za-z0-9 &*'.-]{2,})`];
   for (const p of pats) {
@@ -164,7 +185,8 @@ const BANKS = [["First Abu Dhabi Bank","بنك أبوظبي الأول",["FAB","
 
 function bankName(sender, lower) {
   const s = (sender || "").toLowerCase();
-  const b = (s && BANKS.find(b => b[2].some(id => s.includes(id.toLowerCase()))))
+  // The sender exactly, or as a whole word ("AD-ADCB", "alerts@adcb.com"), never inside another name.
+  const b = (s && BANKS.find(b => b[2].some(id => s === id.toLowerCase() || hasWord(s, id.toLowerCase()))))
     // In the body, whole words only: "liv" inside "delivered" is not Liv.
     || BANKS.find(b => b[2].some(id => hasWord(lower, id.toLowerCase())));
   return b ? { en: b[0], ar: b[1] } : null;
@@ -180,7 +202,7 @@ export function parse(raw, sender) {
   if (!kind) return null;
   return {
     amount: amt[0], currency: amt[1], kind,
-    merchant: kind === "income" ? incomeSource(text) : kind === "cardPayment" ? null : merchant(text),
+    merchant: kind === "income" ? incomeSource(text) : kind === "cardPayment" || kind === "ownTransfer" ? null : merchant(text),
     cardLast4: cardLast4(text), balanceAfter: balance(text), bank: bankName(sender, lower)
   };
 }
@@ -205,18 +227,18 @@ const RULES = [["talabat","delivery"],["deliveroo","delivery"],["noon food","del
   ["hypermarket","groceries"],["كارفور","groceries"],["لولو","groceries"],["تعاونية","groceries"],["بقالة","groceries"],
   ["starbucks","dining"],["tim hortons","dining"],["costa","dining"],["mcdonald","dining"],["kfc","dining"],["shake shack","dining"],
   ["restaurant","dining"],["cafe","dining"],["café","dining"],["coffee","dining"],["مطعم","dining"],["مقهى","dining"],["كافيه","dining"],
-  ["careem","transport"],["uber","transport"],["rta","transport"],["salik","transport"],["darb","transport"],["itc ","transport"],
+  ["careem","transport"],["uber","transport"],["rta","transport"],["salik","transport"],["darb","transport"],["itc","transport"],
   ["parking","transport"],["mawaqif","transport"],["nol","transport"],["taxi","transport"],["كريم","transport"],["سالك","transport"],["مواقف","transport"],
   ["adnoc","fuel"],["enoc","fuel"],["eppco","fuel"],["emarat","fuel"],["petrol","fuel"],["أدنوك","fuel"],
   ["taqa","bills"],["addc","bills"],["aadc","bills"],["dewa","bills"],["sewa","bills"],["fewa","bills"],["etihad wa","bills"],
   ["empower","bills"],["tabreed","bills"],["طاقة","bills"],["ديوا","bills"],
-  ["etisalat","telecom"],["e& ","telecom"],["du ","telecom"],["virgin mobile","telecom"],["اتصالات","telecom"],
+  ["etisalat","telecom"],["e&","telecom"],["du","telecom"],["virgin mobile","telecom"],["اتصالات","telecom"],
   ["netflix","subscriptions"],["spotify","subscriptions"],["apple.com","subscriptions"],["osn","subscriptions"],["shahid","subscriptions"],
   ["youtube","subscriptions"],["anghami","subscriptions"],["icloud","subscriptions"],["amazon prime","subscriptions"],["disney","subscriptions"],
   ["chatgpt","subscriptions"],["claude","subscriptions"],
   ["amazon","shopping"],["noon","shopping"],["namshi","shopping"],["shein","shopping"],["ikea","family"],["centrepoint","shopping"],
   ["max fashion","shopping"],["h&m","shopping"],["zara","shopping"],["mall","shopping"],["sharaf dg","shopping"],["jumbo","shopping"],
-  ["virgin megastore","shopping"],["ace ","family"],["home centre","family"],
+  ["virgin megastore","shopping"],["ace","family"],["home centre","family"],
   ["pharmacy","health"],["aster","health"],["life pharmacy","health"],["boots","health"],["hospital","health"],["clinic","health"],
   ["seha","health"],["mediclinic","health"],["صيدلية","health"],["مستشفى","health"],
   ["vox","entertainment"],["reel cinema","entertainment"],["novo","entertainment"],["ferrari world","entertainment"],["yas","entertainment"],
@@ -227,12 +249,68 @@ const RULES = [["talabat","delivery"],["deliveroo","delivery"],["noon food","del
   ["tabby","installments"],["tamara","installments"],["postpay","installments"],["تابي","installments"],["تمارا","installments"],
   ["red crescent","charity"],["dar al ber","charity"],["الهلال الأحمر","charity"],["صدقة","charity"],["زكاة","charity"]];
 
-export function categorize(t) {
+// Whole words for English keywords (NOVOTEL is not "novo", AFTERNOON TEA is not "noon"), allowing a
+// plural or possessive "s" (RESTAURANTS, MCDONALD'S). Arabic keywords stay substrings.
+const ruleHit = (m, key) => hasWord(m, key) || (ASCII.test(key) && (hasWord(m, key + "s") || hasWord(m, key + "'s")));
+
+// `learned`: { "merchant name, lower-case": category } from the person's own corrections.
+// Exact name first, then the longest learned name found as whole words.
+export function categorize(t, learned = {}) {
   if (t.kind === "income" || t.kind === "refund") return "income";
   if (t.kind === "withdrawal") return "cash";
-  if (t.kind === "cardPayment") return "transfer";
+  if (t.kind === "cardPayment" || t.kind === "ownTransfer") return "transfer";
   if (!t.merchant) return t.kind === "transferOut" ? "transfer" : "other";
-  const m = t.merchant.toLowerCase() + " ";
-  const hit = RULES.find(r => m.includes(r[0]));
+  const m = t.merchant.toLowerCase();
+  if (Object.hasOwn(learned, m)) return learned[m];
+  const keys = Object.keys(learned).filter(k => k && hasWord(m, k.toLowerCase())).sort((a, b) => b.length - a.length);
+  if (keys.length) return learned[keys[0]];
+  const hit = RULES.find(r => ruleHit(m, r[0]));
   return hit ? hit[1] : (t.kind === "transferOut" ? "transfer" : "other");
+}
+
+// ---- Email text (mirrors MessageText in MasroofiCore/TransactionSources.swift) -------------
+
+const DIRECTION_MARKS = /[‎‏؜‪-‮⁦-⁩​-‍﻿]/g;
+const NAMED_ENTITIES = { nbsp: " ", lt: "<", gt: ">", quot: "\"", apos: "'", ndash: "–", mdash: "—",
+  zwnj: "", zwj: "", lrm: "", rlm: "", rsquo: "’", lsquo: "‘" };
+
+function decodeEntities(s) {
+  // One pass, so "&amp;nbsp;" becomes the text "&nbsp;" and isn't decoded twice.
+  return s.replace(/&(#[0-9]{1,7}|#x[0-9a-fA-F]{1,6}|[a-zA-Z]{2,8});/g, (whole, name) => {
+    const n = name.toLowerCase();
+    if (n === "amp") return "&";
+    if (n in NAMED_ENTITIES) return NAMED_ENTITIES[n];
+    const cp = n.startsWith("#x") ? parseInt(n.slice(2), 16) : n.startsWith("#") ? parseInt(n.slice(1), 10) : NaN;
+    return Number.isFinite(cp) && cp <= 0x10FFFF ? String.fromCodePoint(cp) : whole;
+  });
+}
+
+// Drops HTML tags, comments and <style>/<script>/<head> blocks, decodes entities, collapses whitespace.
+export function stripHtml(raw) {
+  let s = raw
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<(style|script|head)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<\/?(?:p|div|tr|td|th|li|ul|ol|table|tbody|h[1-6])\b[^>]*>/gi, " ")
+    .replace(/<\/?[a-z][a-z0-9]*\b[^<>]*>/gi, "");
+  s = decodeEntities(s).replace(DIRECTION_MARKS, "");
+  return s.replace(/\s+/g, " ").trim();
+}
+
+const FOOTER_MARKERS = ["never share", "do not share", "don't share", "for your security", "for security reasons",
+  "disclaimer", "this is a system generated", "this is an automated", "this is an auto-generated",
+  "please do not reply", "do not reply to this", "unsubscribe", "regards",
+  "لا تشارك", "يرجى عدم الرد", "إخلاء المسؤولية", "مع تحيات", "مع أطيب التحيات"];
+
+// Plain text of an email body, cut before the footer ("never share your OTP" would otherwise make the
+// parser skip the email). Only cuts after the transaction amount.
+export function emailBody(raw) {
+  const text = normalize(stripHtml(raw));
+  let cut = -1;
+  for (const m of FOOTER_MARKERS) {
+    const i = text.search(new RegExp(esc(m), "i"));
+    if (i < 0 || (cut >= 0 && cut <= i)) continue;
+    if (allAmounts(text.slice(0, i)).length) cut = i;
+  }
+  return cut < 0 ? text : text.slice(0, cut).replace(/^[ \-|]+|[ \-|]+$/g, "");
 }

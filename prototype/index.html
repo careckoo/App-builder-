@@ -251,12 +251,13 @@ const T = {
       "Open Shortcuts → Automation → New Automation (+).",
       "Choose Message. Sender: ADCB, FAB, EmiratesNBD (as shown in Messages).",
       "Choose Run Immediately → Next.",
-      "Add Masroofi “Log bank message” → Message: Shortcut Input.",
+      "Add Masroofi “Log bank message or email” → Message: Shortcut Input.",
       "Done. Your next card payment logs itself."],
     privacy: "Everything stays on your iPhone. No bank logins, no server.",
     now: "now", logged: "Left today", skipped: "Not a transaction, skipped", dup: "Already logged",
     pAmount: "Amount", pType: "Type", pWhere: "Merchant", pCard: "Card", pCat: "Category", pBal: "Balance after",
-    kinds: { purchase: "Purchase", withdrawal: "ATM cash", transferOut: "Transfer out", income: "Income", refund: "Refund", cardPayment: "Card bill payment" },
+    kinds: { purchase: "Purchase", withdrawal: "ATM cash", transferOut: "Transfer out", income: "Income", refund: "Refund", cardPayment: "Card bill payment", ownTransfer: "Between your accounts" },
+    neutral: "doesn't change today's amount",
     willSkip: "Masroofi would skip this message (OTP, promo, declined, or no amount).",
     cmpRows: [
       ["Reads bank SMS automatically", "yes:Saudi banks", "no:Manual / AI import", "yes:UAE banks, Arabic + English"],
@@ -295,7 +296,8 @@ const T = {
     privacy: "كل شيء يبقى على جوالك. بدون بيانات دخول البنك، وبدون خادم.",
     now: "الآن", logged: "المتبقي اليوم", skipped: "ليست عملية مالية، تم التجاهل", dup: "مسجّلة من قبل",
     pAmount: "المبلغ", pType: "النوع", pWhere: "المتجر", pCard: "البطاقة", pCat: "الفئة", pBal: "الرصيد بعدها",
-    kinds: { purchase: "شراء", withdrawal: "سحب نقدي", transferOut: "تحويل صادر", income: "دخل", refund: "استرداد", cardPayment: "سداد بطاقة" },
+    kinds: { purchase: "شراء", withdrawal: "سحب نقدي", transferOut: "تحويل صادر", income: "دخل", refund: "استرداد", cardPayment: "سداد بطاقة", ownTransfer: "بين حساباتك" },
+    neutral: "ما يغيّر مبلغ اليوم",
     willSkip: "مصروفي بيتجاهل هذه الرسالة (رمز تحقق، عرض، عملية مرفوضة، أو بدون مبلغ).",
     cmpRows: [
       ["يقرأ رسائل البنك تلقائياً", "yes:بنوك سعودية", "no:يدوي / استيراد بالذكاء الاصطناعي", "yes:بنوك الإمارات، عربي وإنجليزي"],
@@ -334,6 +336,8 @@ let txs = [
 const FX = { AED: 1, USD: 3.6725, EUR: 4.0, GBP: 4.7, SAR: 0.979 };
 const aedOf = t => t.amount * (FX[t.currency] || 1);
 const isExp = t => ["purchase", "withdrawal", "transferOut"].includes(t.kind);
+// Card bill payments and moves between your own accounts: neither spending nor income, so no sign.
+const isNeutral = t => t.kind === "cardPayment" || t.kind === "ownTransfer";
 
 const SAMPLES = [
   ["FAB", "Card ending 1234 was used for AED 45.50 at CARREFOUR,ABU DHABI AE on 17/11/2026 10:22. Available balance AED 5,230.10"],
@@ -386,11 +390,11 @@ const ICONS = [
 
 function rowHTML(t) {
   const isNew = t === lastAdded ? " new" : "";
-  const amt = (isExp(t) ? "−" : "+") + fmt(t.amount, 2);
+  const amt = (isExp(t) ? "−" : isNeutral(t) ? "" : "+") + fmt(t.amount, 2);
   const label = t.merchant || catName(t.cat);
   return `<div class="row${isNew}"><div class="ico" aria-hidden="true">${catIcon(t.cat)}</div>
     <div style="min-width:0"><div class="name">${esc(label)}</div><div class="meta">${esc(catName(t.cat))} · ${time(t.date)}${t.card ? " · •••• " + esc(t.card) : ""}</div></div>
-    <div class="amt${isExp(t) ? "" : " in"}">${amt}<small>${esc(t.currency)}</small></div></div>`;
+    <div class="amt${isExp(t) || isNeutral(t) ? "" : " in"}">${amt}<small>${esc(t.currency)}</small></div></div>`;
 }
 
 function viewToday() {
@@ -485,15 +489,20 @@ function notify(sender, text, appStyle) {
   setTimeout(() => { n.classList.add("out"); setTimeout(() => n.remove(), 400); }, appStyle ? 3200 : 2600);
 }
 
+let simClock = new Date(TODAY);
 function deliver(sender, msg) {
   notify(sender, msg, false);
   setTimeout(() => {
     const L = T[lang];
     const p = parse(msg, sender);
     if (!p) { notify("", L.skipped, true); return; }
-    const at = new Date(2026, 10, 17, 9 + Math.floor(Math.random() * 9), Math.floor(Math.random() * 60));
+    // A simulated clock: each message arrives a minute after the previous one.
+    simClock = new Date(simClock.getTime() + 60e3);
+    const at = new Date(simClock);
     const t = { merchant: p.merchant || "", amount: p.amount, currency: p.currency, kind: p.kind, cat: categorize(p), date: at, card: p.cardLast4 };
-    const dup = txs.some(x => x.amount === t.amount && x.merchant === t.merchant && x.card === t.card && x.date >= new Date(2026, 10, 17));
+    // Same rule as DuplicateDetector in the app: same kind, amount, currency, card and merchant within 3 minutes.
+    const dup = txs.some(x => x.kind === t.kind && x.amount === t.amount && x.currency === t.currency && x.merchant === t.merchant
+      && (x.card || null) === (t.card || null) && Math.abs(x.date - at) <= 180e3);
     if (dup) { notify("", L.dup, true); return; }
     // A payment that matches an unpaid fixed bill ticks it off instead of eating today's amount.
     const bill = BILLS.find(b => !b.paid && b.match === t.cat && Math.abs(b.amount - aedOf(t)) <= Math.max(5, b.amount * .02));
@@ -503,7 +512,9 @@ function deliver(sender, msg) {
     renderPhone();
     const s = safeToSpend();
     const where = t.merchant ? ` · ${t.merchant}` : "";
-    notify("", isExp(t) ? `${t.currency} ${fmt(t.amount, 2)}${where}. ${L.logged}: AED ${fmt(Math.max(0, s.today))}` : `+${t.currency} ${fmt(t.amount, 2)}${where}`, true);
+    notify("", isExp(t) ? `${t.currency} ${fmt(t.amount, 2)}${where}. ${L.logged}: AED ${fmt(Math.max(0, s.today))}`
+      : isNeutral(t) ? `${L.kinds[t.kind]}: ${t.currency} ${fmt(t.amount, 2)} · ${L.neutral}`
+      : `+${t.currency} ${fmt(t.amount, 2)}${where}`, true);
   }, 1100);
 }
 

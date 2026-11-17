@@ -2,16 +2,18 @@ import AppIntents
 import SwiftData
 import MasroofiCore
 
-/// The action people add to their Shortcuts automation:
+/// The action people add to their Shortcuts automation, for SMS or email:
 ///   Automation → Message → Sender is "ADCB" (or FAB, EmiratesNBD…) → Run Immediately
-///   → Masroofi "Log bank message" with the message content.
+///   → Masroofi "Log bank message or email" with the message content.
+///   Automation → Email → Sender is the bank's alert address → Run Immediately → same action with the email body.
 ///
-/// iOS does not let any app read SMS directly. This automation is Apple's supported way:
-/// the person chooses which senders to forward, once, and after that every bank alert is
-/// logged in the background without opening the app or typing a number.
+/// iOS does not let any app read SMS, email or other apps' notifications directly. These automations
+/// are Apple's supported way: the person chooses which senders to forward, once, and after that every
+/// bank alert is logged in the background without opening the app or typing a number.
+/// The type name stays `LogBankMessageIntent` so automations people already made keep working.
 struct LogBankMessageIntent: AppIntent {
-    static let title: LocalizedStringResource = "Log bank message"
-    static let description = IntentDescription("Reads a bank SMS and adds the transaction to Masroofi.",
+    static let title: LocalizedStringResource = "Log bank message or email"
+    static let description = IntentDescription("Reads a bank SMS or alert email and adds the transaction to Masroofi.",
                                                categoryName: "Tracking")
     static let openAppWhenRun = false
 
@@ -21,29 +23,82 @@ struct LogBankMessageIntent: AppIntent {
     @Parameter(title: "Sender", default: nil)
     var sender: String?
 
+    @Parameter(title: "Subject", default: nil)
+    var subject: String?
+
     static var parameterSummary: some ParameterSummary {
-        Summary("Log \(\.$message)") { \.$sender }
+        Summary("Log \(\.$message)") {
+            \.$sender
+            \.$subject
+        }
     }
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        switch try TransactionLogger().log(message: message, sender: sender) {
+        let outcome = try TransactionLogger().log(message: message, sender: sender, subject: subject)
+        return .result(dialog: LoggedDialog.text(for: outcome))
+    }
+}
+
+/// Logs an Apple Pay purchase. Set up once:
+///   Automation → Transaction → choose cards → Run Immediately → Masroofi "Log Apple Pay purchase"
+///   with Amount, Merchant and Card or Pass from the Shortcut Input.
+/// This works for any bank's card in Wallet, including banks that only send in-app notifications.
+struct LogWalletTransactionIntent: AppIntent {
+    static let title: LocalizedStringResource = "Log Apple Pay purchase"
+    static let description = IntentDescription("Adds an Apple Pay purchase from the Wallet Transaction automation to Masroofi.",
+                                               categoryName: "Tracking")
+    static let openAppWhenRun = false
+
+    /// Text, not a number: Shortcuts passes the Wallet amount formatted for the phone's language,
+    /// e.g. "AED 45.50" or "د.إ.‏ ٤٥٫٥٠".
+    @Parameter(title: "Amount")
+    var amount: String
+
+    /// Optional so a purchase without a merchant name still logs instead of stopping to ask.
+    @Parameter(title: "Merchant", default: nil)
+    var merchant: String?
+
+    @Parameter(title: "Card", default: nil)
+    var card: String?
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Log \(\.$amount) at \(\.$merchant)") { \.$card }
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let outcome = try TransactionLogger().logWallet(amountText: amount, merchant: merchant, card: card)
+        return .result(dialog: LoggedDialog.text(for: outcome))
+    }
+}
+
+/// What the Shortcut says after logging, shared by the message and Apple Pay actions.
+enum LoggedDialog {
+    @MainActor
+    static func text(for outcome: TransactionLogger.Outcome) -> IntentDialog {
+        switch outcome {
         case let .saved(tx, safe):
             let amount = tx.amount.formatted(.number.precision(.fractionLength(2)))
             let left = safe.today.formatted(.number.precision(.fractionLength(0)))
             let where_ = tx.merchant.isEmpty ? "" : " · \(tx.merchant)"
             if tx.isExpense {
-                return .result(dialog: "\(tx.currency) \(amount)\(where_). Left today: AED \(left)")
+                return "\(tx.currency) \(amount)\(where_). Left today: AED \(left)"
             } else if tx.kind == .cardPayment {
-                return .result(dialog: "Card bill payment of \(tx.currency) \(amount) logged. It doesn't change today's amount.")
+                return "Card bill payment of \(tx.currency) \(amount) logged. It doesn't change today's amount."
+            } else if tx.kind == .ownTransfer {
+                return "Moved \(tx.currency) \(amount) between your accounts. It doesn't change today's amount."
             } else {
-                return .result(dialog: "+\(tx.currency) \(amount)\(where_)")
+                return "+\(tx.currency) \(amount)\(where_)"
             }
+        case .merged:
+            // Apple Pay and the bank's SMS or email reported the same purchase.
+            return "Already logged. Added the bank's details to it."
         case .duplicate:
-            return .result(dialog: "Already logged")
+            return "Already logged"
         case .notATransaction:
             // OTPs, promos and declined payments end up here on purpose.
-            return .result(dialog: "Not a transaction, skipped")
+            return "Not a transaction, skipped"
         }
     }
 }
@@ -62,12 +117,16 @@ struct SafeToSpendTodayIntent: AppIntent {
     }
 }
 
-/// Makes both actions appear in the Shortcuts app straight after install, in English and Arabic.
+/// Makes the actions appear in the Shortcuts app straight after install, in English and Arabic.
 struct MasroofiShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
+        AppShortcut(intent: LogWalletTransactionIntent(),
+                    phrases: ["Log Apple Pay purchase in \(.applicationName)"],
+                    shortTitle: "Log Apple Pay purchase", systemImageName: "wallet.pass.fill")
         AppShortcut(intent: LogBankMessageIntent(),
-                    phrases: ["Log bank message in \(.applicationName)"],
-                    shortTitle: "Log bank message", systemImageName: "text.bubble.fill")
+                    phrases: ["Log bank message in \(.applicationName)",
+                              "Log bank email in \(.applicationName)"],
+                    shortTitle: "Log bank message or email", systemImageName: "text.bubble.fill")
         AppShortcut(intent: SafeToSpendTodayIntent(),
                     phrases: ["How much can I spend today in \(.applicationName)",
                               "\(.applicationName) safe to spend"],
