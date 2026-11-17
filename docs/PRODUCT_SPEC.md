@@ -1,21 +1,21 @@
-# Masroofi v1 Product Spec · مواصفات المنتج
+# Sarfi v1 Product Spec · مواصفات المنتج
 
-Status: draft for the Lead and the user · 2026-11-17 · Working name "Masroofi" (rename pending, UNFORGET S8).
+Status: draft for the Lead and the user · 2026-11-17 · App name **Sarfi** / «صرفي» (Arabic name first in Arabic UI).
 Body in English; Arabic UI copy is Gulf Arabic, in quotes. Amounts show as `AED 120` and stay left-to-right in both languages.
 
 ---
 
 ## 1. Principle · المبدأ
 
-**One honest number a day, kept up to date for you.** Masroofi tells you how much you can spend today and still reach payday comfortably, and keeps that number right without you typing. Everything else (lists, charts, plans) exists to make that number trustworthy. If a feature makes the home screen busier or asks the user to do work the phone could do, it doesn't ship.
+**One honest number a day, kept up to date for you.** Sarfi tells you how much you can spend today and still reach payday comfortably, and keeps that number right without you typing. Everything else (lists, charts, plans) exists to make that number trustworthy. If a feature makes the home screen busier or asks the user to do work the phone could do, it doesn't ship.
 
 What makes us better than OutCap:
 
-| | OutCap (seen) | Masroofi |
+| | OutCap (seen) | Sarfi |
 |---|---|---|
 | Automatic sources | Bank SMS only ("waiting for a message") | **Three**: Apple Pay (Wallet "Transaction" automation), bank SMS, bank alert email, merged so one purchase shows once. Keeps working as UAE banks move alerts into their apps. |
 | Setup | Manual salary, payday, obligations | Salary amount and payday **detected from the first salary message**; bills, subscriptions and own accounts **suggested** from what the bank already tells us |
-| Unreadable message | "Teach us" (sends to them) | **Teach Masroofi on the phone**: tap the amount and merchant once, a local template is saved. Nothing leaves the device. |
+| Unreadable message | "Teach us" (sends to them) | **Teach Sarfi on the phone**: tap the amount and merchant once, a local template is saved. Nothing leaves the device. |
 | UAE fit | Saudi-first | UAE banks and sender IDs, UAE merchants and billers (DEWA, TAQA/ADDC, SEWA, Salik, Etisalat/e&, du, Tabby, Tamara), Sat–Sun weekend salary shift, Hijri seasons, school-fee months |
 | Free tier | Widget and carry-over are Pro | Automation, the daily number, widget, Siri, bills and alerts that protect money are **always free** |
 | Privacy | On-device | On-device, no server, no analytics SDK, optional Face ID lock, one tap to delete stored message text |
@@ -48,7 +48,7 @@ Legend: **Auto** = what happens without the user. **Ver** = 1.0 (TestFlight) or 
 | # | Feature | What it does | Auto | Tier | Ver |
 |---|---|---|---|---|---|
 | T1 | Today's number + ring | Big "AED 120" with "تقدر تصرف اليوم" and a ring that empties as you spend [big ring] | Recomputes on every logged payment, at midnight, and when salary lands | Free | 1.0 |
-| T2 | Context line | "مساء الخير يا سالم · 6 أيام حتى الراتب · المتبقي AED 2,450" [greeting, days to payday, remaining from salary] | Greeting follows time of day; name optional | Free | 1.0 |
+| T2 | Context line | "مساء الخير يا سالم · باقي 6 أيام على الراتب · المتبقي حتى الراتب AED 2,450" [greeting, days to payday, remaining from salary] | Greeting follows time of day; name optional | Free | 1.0 |
 | T3 | Cycle chip | "اليوم 24 من 31 · 38 عملية". Tap opens the cycle summary [profile ring header] | | Free | 1.0 |
 | T4 | Status word | Relaxed / On track / Careful / Over, colour on the ring | | Free | 1.0 |
 | T5 | Last 3 payments | With source badge (Apple Pay, SMS, email, hand) | | Free | 1.0 |
@@ -69,7 +69,7 @@ Not on Today, on purpose: obligations total, link status tiles, history (OutCap'
 | A4 | Categories view | Segmented "القائمة / الفئات": per-cycle breakdown with bars [categories tab] | | Free | 1.0 |
 | A5 | Edit categories | Rename, icon, add custom; merge two categories in 1.1 [edit categories] | | Free | 1.0 |
 | A6 | Unread messages | A "ما قدرنا نقراها" section for bank messages that came in but didn't parse, never silently dropped | Yes | Free | 1.0 |
-| A7 | Teach Masroofi | On an unread message the user taps the amount, then the merchant, in the message text. A local template is saved for that sender and used before the generic parser next time. No server ["teach us"] | Learns per sender | Free | 1.1 |
+| A7 | Teach Sarfi | On an unread message the user taps the amount, then the merchant, in the message text. A local template is saved for that sender and used before the generic parser next time. No server ["teach us"] | Learns per sender | Free | 1.1 |
 | A8 | Refund matching | A credit from the same merchant within 30 days offsets the purchase and gives today's amount back | Yes | Free | 1.1 |
 | A9 | CSV export | Cycle or all time, share sheet | | Free | 1.0 |
 
@@ -118,7 +118,7 @@ Automation features are never paywalled: a user who can't teach a message stops 
 |---|---|---|---|---|
 | S1 | Automatic tracking | Apple Pay, bank SMS (per bank), email alerts: status and "last received" per source; setup steps [link status] | Free | 1.0 |
 | S2 | Notifications | Grouped toggles, see section 5 | Free | 1.0 |
-| S3 | Appearance | System / Light / Dark | Free | 1.0 |
+| S3 | Appearance | Light (default) / Dark / Match iPhone: "فاتح / داكن / حسب الآيفون". The app opens in Light on first launch | Free | 1.0 |
 | S4 | Digits | Western "123" (default, matches bank messages, shows `AED 120`) or Arabic "١٢٣" (shows "١٢٠ درهم") | Free | 1.0 |
 | S5 | Language | Opens iOS per-app language | Free | 1.0 |
 | S6 | Keep message text | On by default, device only; "امسح نصوص الرسائل كلها" button | Free | 1.0 |
@@ -138,7 +138,7 @@ Automation features are never paywalled: a user who can't teach a message stops 
 | Detect payday + salary from first salary message | Keep, suggest-only | P3, 1.0 |
 | Detect recurring bills/subscriptions | Keep; known list 1.0, pattern 1.1 (needs two months of data anyway) | P7 |
 | Detect own accounts/cards from endings | Keep, ask once per ending | P9, 1.0 |
-| Teach Masroofi (local template) | Keep; inbox 1.0, tap-to-teach 1.1 (needs careful matching and tests in Swift and JS) | A6, A7 |
+| Teach Sarfi (local template) | Keep; inbox 1.0, tap-to-teach 1.1 (needs careful matching and tests in Swift and JS) | A6, A7 |
 | Duplicate-charge alert | Keep, free (protects money) | I6, 1.0 |
 | Unusual-spend alert | Keep, needs history | I7, 1.1 |
 | "Will my salary last?" | Keep, Pro headline feature | I4, 1.0 |
@@ -158,7 +158,7 @@ Automation features are never paywalled: a user who can't teach a message stops 
 
 **Rule:** free = everything automatic, the daily number, and anything that protects money. Pro = the smart layer and "more of" things.
 
-| Free (forever) | Pro "مصروفي برو" |
+| Free (forever) | Pro "صرفي برو" |
 |---|---|
 | All three automatic sources, merge, manual add, paste | Will my salary last? (I4) |
 | Today's number, ring, widget, Siri | Money-leak finder, full list (I5) |
@@ -224,29 +224,35 @@ Rules: at most one N3/N4 per day; N2 and N3/N4 merge into one banner when they c
 
 ## 6. Visual direction · الهوية البصرية
 
-Goal: unmistakably not OutCap (dark green + gold) and still native iOS.
+Goal: unmistakably not OutCap (dark green + gold), light and uplifting, and still native iOS.
 
-**Palette "Gulf dusk"**: calm indigo-blue brand, warm sand surfaces, status colours that don't shame.
+**Palette "Gulf morning"**: bright warm-white backgrounds, soft sand cards, Gulf sea blue as the brand, a small touch of sunny yellow, status colours that don't shame. The app opens in **Light** by default; Settings → Appearance offers **Light (default) / Dark / Match iPhone** (S3).
 
-| Role | Light | Dark | Notes |
+| Token | Light | Dark | Notes |
 |---|---|---|---|
-| Brand / accent | Indigo `#3A4FE0` | `#7C8CFF` | Replaces the current teal in `Theme.swift`, which reads close to the competitor's green |
-| Surface tint (cards) | Sand `#F6EFE4` | `#1C1A24` | Over system grouped backgrounds; never full-screen colour |
-| Relaxed | Mint `#2BB59A` | `#45D3B5` | |
-| Careful | Amber `#F2A33A` | `#FFB95C` | |
-| Over | Coral `#F0625A` | `#FF7B73` | Softer than red: "adjust", not "fail" |
+| background | `#FFFCF6` | `#12161C` | Warm white, never pure grey |
+| surface | `#FFFFFF` | `#1B2129` | Cards, lists, tab bar |
+| surfaceSecondary / ring track | Soft sand `#F6EFE3` | `#232A33` | Icon wells, inputs, the empty part of the ring and bars |
+| accent | Gulf sea blue `#2E8BEF` | `#5AA9FF` | Replaces the teal in `Theme.swift`, which read close to the competitor's green |
+| highlight | Sunny yellow `#FFC53D` | `#FFD36B` | Small highlights only: payday crescent, achievements. Never text, never large fills |
+| relaxed | Green `#22B573` | `#3DD68C` | |
+| onTrack | = accent | = accent | |
+| careful | Amber `#F5A524` | `#FFB84D` | |
+| over | Soft coral `#F2545B` | `#FF7A80` | Softer than red: "adjust", not "fail" |
+| textPrimary | `#1E2A36` | `#EEF2F6` | |
+| textSecondary | `#6B7785` | `#9AA6B2` | |
 
-Status colours are for the ring, bars and icons; text stays in system label colours (mint and amber on white are below AA contrast for text). Hex values are a starting point, to be contrast-checked on device. Status is never shown by colour alone (word + icon too).
+Status colours are for the ring, bars, dots and icons; text stays in textPrimary / textSecondary (green, amber and yellow on white are below AA contrast for text; `#2E8BEF` on white is about 3.5:1, so small blue text such as captions uses a darker shade, e.g. `#1B6FCC`, while buttons, icons and the selected tab use the accent). Hex values are to be contrast-checked on device. Status is never shown by colour alone (word + dot or icon too).
 
 **Type**: SF Pro for UI, **SF Pro Rounded** for the big number (`.monospacedDigit()` so it doesn't jump); **SF Arabic** for Arabic (the system face, so Dynamic Type and weights just work). No bundled fonts in 1.0. Arabic line height +15% to avoid clipped diacritics; test at the largest accessibility size.
 
-**Home concept "The day ring and the payday moon"**: one thick ring holds today's amount and empties as you spend; the number in the centre. Under it a small crescent fills as payday approaches (the cycle as a moon phase): a quiet, local motif that replaces OutCap's second "day 24 of 31" ring. Nothing else above the fold.
+**Home concept "The day ring and the payday crescent"**: one thick ring holds today's amount ("مصروف اليوم") and empties as you spend; the number in the centre with "left of AED 444" / "باقي من AED 444" and a status word under it. Under the ring a small **sunny-yellow crescent** fills as payday approaches and is full on payday (the cycle as a moon phase), next to "باقي 10 أيام على الراتب · المتبقي حتى الراتب AED 4,420": a quiet, local motif that replaces OutCap's second "day 24 of 31" ring. Nothing else above the fold except the last 3 payments.
 
 **RTL**: the ring does not mirror (clock metaphor, like Activity rings); progress bars, chevrons, back buttons and the 7-day chart's time axis do mirror (today on the left in Arabic). Amounts and card endings are wrapped in LTR isolates. Merchant names stay as the bank wrote them.
 
 **Motion**: the ring eases to its new value with a soft spring when a payment lands; the number uses `.contentTransition(.numericText())`; a light haptic on each logged payment, a success haptic on payday. Reduce Motion swaps all of this for cross-fades.
 
-**Icon direction**: indigo crescent around a coin on sand; no green, no gold.
+**Icon direction**: sunny-yellow crescent on Gulf sea blue (morning sky); no green, no gold.
 
 ---
 

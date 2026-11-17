@@ -128,14 +128,14 @@ h3.sec { font: 600 17px var(--font-display); margin: 0 0 8px; }
 /* Setup: the three automatic sources */
 .source { border-bottom: 1px solid var(--line); }
 .source:last-child { border-bottom: 0; }
-.source summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 34px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 10px 0; }
+.source summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 10px; align-items: center; padding: 10px 0; }
 .source summary::-webkit-details-marker { display: none; }
 .source .sico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-size: 16px; background: var(--surface-2); }
 .source .sico.pay { background: var(--ink); color: var(--bg); font: 600 11px var(--font-display); }
 .source .t { font-weight: 600; font-size: 14px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.source .d { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+.source .d { display: block; font-size: 11.5px; color: var(--muted); line-height: 1.45; }
 .rec { font-size: 10.5px; font-weight: 600; background: color-mix(in srgb, var(--sun) 35%, transparent); color: var(--ink); border-radius: 6px; padding: 0 6px; }
-.state { font-size: 11px; font-weight: 600; color: var(--muted); display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.state { margin-inline-start: auto; font-size: 11px; font-weight: 600; color: var(--muted); display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .state i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
 .state.on i { background: var(--good); }
 .source ol { margin: 0 0 10px; padding-inline-start: 22px; font-size: 12.5px; color: var(--ink); }
@@ -311,7 +311,7 @@ const T = {
     cmpNote: "Based on each app's App Store listing. OutCap reads Saudi bank SMS; Budget app relies on manual, voice, receipt and CSV entry.",
     tabs: ["Today", "Activity", "Plan", "Setup"],
     greet: "Good morning", dateLine: "Tuesday, 17 November",
-    todayAmount: "Today's spend", leftOf: a => `left of ${a}`, overBy: a => `over by ${a}`,
+    todayAmount: "Left to spend today", leftOf: a => `left of ${a}`, overBy: a => `over by ${a}`,
     paydayDays: n => n === 0 ? "Payday is today" : n === 1 ? "1 day to payday" : `${n} days to payday`,
     leftPayday: a => `${a} left until payday`,
     today: "Today", noSpend: "Nothing spent yet today. Payments show up here by themselves.",
@@ -507,7 +507,7 @@ function rowHTML(t) {
   const label = t.merchant || catName(t.cat);
   const src = srcLabel(t);
   return `<div class="row${isNew}"><div class="ico" aria-hidden="true">${catIcon(t.cat)}</div>
-    <div style="min-width:0"><div class="name" dir="auto">${esc(label)}</div><div class="meta">${src ? `<span class="src">${esc(src)}</span> · ` : ""}${esc(catName(t.cat))} · ${time(t.date)}</div></div>
+    <div style="min-width:0"><div class="name" dir="auto">${esc(label)}</div><div class="meta"><bdi>${time(t.date)}</bdi> · ${src ? `<span class="src">${esc(src)}</span> · ` : ""}${esc(catName(t.cat))}</div></div>
     <div class="amt${isExp(t) || isNeutral(t) ? "" : " in"}">${amt}<small>${esc(t.currency)}</small></div></div>`;
 }
 
@@ -582,8 +582,7 @@ function viewSetup() {
   const sources = L.sources.map(s => {
     const on = seen.has(s.key);
     return `<details class="source"><summary><span class="sico${s.ico === "Pay" ? " pay" : ""}" aria-hidden="true">${s.ico === "Pay" ? "Pay" : s.ico}</span>
-      <span style="min-width:0"><span class="t">${s.title}${s.rec ? `<span class="rec">${s.rec}</span>` : ""}</span><span class="d">${s.d}</span></span>
-      <span class="state${on ? " on" : ""}"><i></i>${on ? L.on : L.waiting[s.key]}</span></summary>
+      <span style="min-width:0"><span class="t">${s.title}${s.rec ? `<span class="rec">${s.rec}</span>` : ""}<span class="state${on ? " on" : ""}"><i></i>${on ? L.on : L.waiting[s.key]}</span></span><span class="d">${s.d}</span></span></summary>
       <ol>${s.steps.map(x => `<li>${x}</li>`).join("")}</ol></details>`;
   }).join("");
   return `<div class="navbar"><h2 class="navtitle">${L.tabs[3]}</h2></div>
