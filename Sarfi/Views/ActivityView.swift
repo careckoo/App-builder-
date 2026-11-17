@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 import WidgetKit
-import MasroofiCore
+import SarfiCore
 
 /// Every transaction, grouped by day, with search. Tap one to change its category.
 struct ActivityView: View {

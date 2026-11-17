@@ -94,9 +94,19 @@ public struct BankMessageParser: Sendable {
         "activation code", "declined", "insufficient", "failed", "unsuccessful", "offer", "offers", "win",
         "رمز التحقق", "كلمة المرور لمرة واحدة", "رمز التفعيل", "لا تشارك", "مرفوضة", "رفض", "غير كاف", "عرض خاص",
         // Payment reminders and prize draws: no money moved.
-        "minimum payment due", "minimum amount due", "minimum due", "min. due", "min due", "is due on", "reminder", "please pay",
-        "الحد الأدنى", "تذكير", "مستحق الدفع", "مستحقة الدفع", "تاريخ الاستحقاق", "اربح", "السحب على", "جوائز", "جائزة"
+        // Not a bare "reminder": "Set a reminder in our app" sits under real purchase alerts.
+        "minimum payment due", "minimum amount due", "minimum due", "min. due", "min due", "is due on",
+        "payment reminder", "friendly reminder", "this is a reminder", "please pay",
+        "الحد الأدنى", "تذكير", "مستحق الدفع", "مستحقة الدفع", "تاريخ الاستحقاق", "اربح", "السحب على", "جوائز", "جائزة",
+        // Purchase-approval codes ("Use 482913 to authorise your purchase of AED 500 at AMAZON.AE").
+        "to authorise", "to authorize", "is your code", "your code is", "passcode", "secure code"
     ]
+
+    /// True for an OTP, promo, reminder or failed payment. Also used on an email's subject, so an
+    /// "Your one-time password" email is skipped even when its body looks like a purchase.
+    public static func isIgnorable(_ text: String) -> Bool {
+        containsAny(normalize(text).lowercased(), ignoreKeywords)
+    }
 
     static let refundKeywords = ["refund", "refunded", "reversal", "reversed", "cashback", "مسترد", "استرداد", "استرجاع", "عكس"]
     static let withdrawalKeywords = ["atm", "cash withdrawal", "withdrawn", "withdrawal", "سحب نقدي", "سحب", "صراف"]
@@ -276,7 +286,7 @@ public struct BankMessageParser: Sendable {
     }
 
     static func merchant(in text: String) -> String? {
-        let stops = #"(?=\s+on\s|\s+from\s|\s+has\s|\s+(?:was|is)\s|\s+من\s+(?:حساب|بطاق)|\s+بتاريخ|\s+في\s+[0-9]|\s+بقيمة|\s+[0-9]{1,2}[/-]|\.\s|\.$|(?:,\s*|\s+)(?:avl|avail|available|bal\b|balance|الرصيد|رصيد)|\s+(?:for\s+)?(?:"# + currencyAlternation + #")\s?[0-9]|$)"#
+        let stops = #"(?=\s+on\s|\s+from\s|\s+with\s+card|\s+has\s|\s+(?:was|is)\s|\s+من\s+(?:حساب|بطاق)|\s+بتاريخ|\s+في\s+[0-9]|\s+بقيمة|\s+[0-9]{1,2}[/-]|\.\s|\.$|(?:,\s*|\s+)(?:avl|avail|available|bal\b|balance|الرصيد|رصيد)|\s+(?:for\s+)?(?:"# + currencyAlternation + #")\s?[0-9]|$)"#
         let patterns = [
             #"\bat\s+(.+?)"# + stops,
             #"لدى\s+(.+?)"# + stops,
@@ -306,6 +316,8 @@ public struct BankMessageParser: Sendable {
 
     static func cleanMerchant(_ s: String) -> String {
         var name = s.trimmingCharacters(in: CharacterSet(charactersIn: " ,.-:"))
+        // "at the DUBAI MALL" -> "DUBAI MALL".
+        if name.lowercased().hasPrefix("the ") { name = String(name.dropFirst(4)).trimmingCharacters(in: .whitespaces) }
         // "CARREFOUR,ABU DHABI AE" -> "CARREFOUR"  ; "Talabat Dubai" stays readable.
         if let comma = name.firstIndex(of: ",") { name = String(name[..<comma]) }
         for tail in [" AE", " UAE", " ARE", " ABU DHABI", " DUBAI", " SHARJAH", " AL AIN"] where name.uppercased().hasSuffix(tail) {

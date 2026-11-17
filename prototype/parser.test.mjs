@@ -1,7 +1,7 @@
 // Run with: node prototype/parser.test.mjs
-// Same cases as MasroofiCore/Tests/MasroofiCoreTests/BankMessageParserTests.swift.
+// Same cases as SarfiCore/Tests/SarfiCoreTests/BankMessageParserTests.swift.
 import assert from "node:assert/strict";
-import { parse, categorize, stripHtml, emailBody } from "./parser.js";
+import { parse, categorize, stripHtml, emailBody, isIgnorable, readMessage } from "./parser.js";
 
 const cases = [
   ["FAB English purchase",
@@ -95,6 +95,14 @@ const cases = [
   ["B8 apple.com still works", "Card ending 1234 was used for AED 50.00 at APPLE.COM/BILL", null, {}, "subscriptions"],
   ["B8 h&m still works", "Card ending 1234 was used for AED 50.00 at H&M", null, {}, "shopping"],
   ["B8 itc without trailing space", "Card ending 1234 was used for AED 50.00 at ITC", null, {}, "transport"],
+  // m2: "reminder" alone is not a reminder message.
+  ["m2 'Set a reminder' under a purchase", "Your card ending 1234 was used for AED 50.00 at CARREFOUR. Set a reminder in our app.", null,
+    { kind: "purchase", amount: 50, merchant: "CARREFOUR", cardLast4: "1234" }, "groceries"],
+  // Merchant stops at "with card" and drops a leading "the".
+  ["Merchant stops at 'with card'", "Purchase of AED 75.00 at DU SHOP with card ending 1234 on 17/11/2026", null,
+    { kind: "purchase", amount: 75, merchant: "DU SHOP", cardLast4: "1234" }, "telecom"],
+  ["Merchant without leading 'the'", "Card ending 1234 was used for AED 50.00 at the DUBAI MALL", null,
+    { kind: "purchase", merchant: "DUBAI MALL" }, "shopping"],
 ];
 
 let pass = 0;
@@ -122,6 +130,9 @@ const ignored = [
   "Your credit limit has been increased to AED 20,000.00",
   // W3: prize draws.
   "اربح جوائز قيمة! استخدم بطاقتك بقيمة 100 درهم وادخل السحب",
+  // m2: real reminder wordings are still skipped.
+  "Friendly reminder: your payment of AED 300.00 to ETISALAT is coming up.",
+  "Payment reminder: AED 450.00 for your Tamara order.",
   "ادخل السحب على جوائز بقيمة 50,000 درهم عند استخدام بطاقتك",
 ];
 for (const msg of ignored) {
@@ -152,7 +163,49 @@ const checks = [
     assert.equal(t.amount, 125); assert.equal(t.merchant, "TALABAT"); assert.equal(t.kind, "purchase"); assert.equal(t.bank.en, "ADCB");
   }],
   ["Email: OTP email is still skipped", () => assert.equal(parse(emailBody("<p>Your OTP for AED 45.50 at AMAZON is 482913. Do not share it.</p>")), null)],
-  ["Email: security banner before the amount is kept", () => assert.equal(emailBody("For your security, check alerts. AED 10.00 debited at X"), "For your security, check alerts. AED 10.00 debited at X")],
+  // A banner sentence above the amount is dropped; the amount's own sentence is always kept.
+  ["Email: security banner before the amount doesn't hide it", () => {
+    const text = emailBody("For your security, check alerts. AED 10.00 debited at X");
+    assert.equal(text, "AED 10.00 debited at X");
+    assert.equal(parse(text).amount, 10);
+  }],
+  // M1: purchase-approval codes sent by email.
+  ["M1 'to authorise' OTP email is skipped", () => assert.equal(parse(emailBody(
+    "<p>Use 482913 to authorise your purchase of AED 500.00 at AMAZON.AE. Do not share this code with anyone.</p>")), null)],
+  ["M1 'is your code' OTP email is skipped", () => assert.equal(parse(emailBody(
+    "482913 is your code for purchase of AED 500.00 at AMAZON.AE. Never share this code.")), null)],
+  ["M1 OTP subject skips the email", () => {
+    assert.ok(isIgnorable("Your one-time password"));
+    assert.ok(!isIgnorable("Debit card purchase"));
+    assert.equal(readMessage("<p>Card ending 1234 was used for AED 500.00 at AMAZON.AE</p>", "alerts@bank.ae", "Your OTP").parsed, null);
+  }],
+  ["M1 subject with the verb still helps", () => {
+    const r = readMessage("<p>Amount: AED 42.00</p><p>Merchant: at NOON.COM</p>", "alerts@bank.ae", "Debit card purchase");
+    assert.equal(r.isEmail, true); assert.equal(r.parsed.amount, 42); assert.equal(r.parsed.kind, "purchase");
+  }],
+  // M2: real bank emails with a security banner above the alert and promos below it.
+  ["M2 security banner above the amount and again in the footer", () => {
+    const body = "<p>For your security, never share your OTP or PIN with anyone.</p>" +
+      "<p>Dear Customer, your Debit Card ending 4321 was used for AED 89.00 at LULU HYPERMARKET on 17/11/2026 18:05.</p>" +
+      "<p>Available balance AED 3,200.00</p><p>Never share your OTP, PIN or password. Regards, Your Bank</p>";
+    const t = parse(emailBody(body), "alerts@bank.ae");
+    assert.ok(t, emailBody(body));
+    assert.equal(t.kind, "purchase"); assert.equal(t.amount, 89); assert.equal(t.merchant, "LULU HYPERMARKET");
+    assert.equal(t.cardLast4, "4321"); assert.equal(t.balanceAfter, 3200);
+  }],
+  ["M2 promo block after the amount", () => {
+    const body = "<p>Dear Customer, your Credit Card ending 5678 was used for AED 230.00 at IKEA on 17/11/2026 12:40.</p>" +
+      "<p>Explore our latest offers in the app. Win a car when you spend AED 500 or more! Terms and conditions apply.</p>";
+    const t = parse(emailBody(body), "alerts@bank.ae");
+    assert.ok(t, emailBody(body));
+    assert.equal(t.kind, "purchase"); assert.equal(t.amount, 230); assert.equal(t.merchant, "IKEA");
+  }],
+  ["M2 promo markers are whole words", () => {
+    assert.equal(emailBody("Card ending 1234 was used for AED 25.00 at WINGSTOP. Win AED 100!"), "Card ending 1234 was used for AED 25.00 at WINGSTOP.");
+    assert.equal(emailBody("تم خصم 900 درهم لدى معرض السيارات. عروض حصرية لك"), "تم خصم 900 درهم لدى معرض السيارات.");
+  }],
+  ["m3 curly apostrophe footer", () => assert.equal(
+    emailBody("Card ending 1234 was used for AED 20.00 at X. Don\u2019t share your OTP."), "Card ending 1234 was used for AED 20.00 at X.")],
 ];
 for (const [name, fn] of checks) {
   try { fn(); pass++; console.log("✓", name); } catch (e) { console.log("✗", name, "—", e.message); }

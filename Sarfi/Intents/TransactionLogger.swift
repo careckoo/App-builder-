@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 import WidgetKit
-import MasroofiCore
+import SarfiCore
 
 /// Turns a bank SMS or email, an Apple Pay purchase, or a manual entry into a saved transaction.
 /// Used by the Shortcuts actions (App Intents), by "Paste a message" and by quick-add in the app.
@@ -21,16 +21,11 @@ struct TransactionLogger {
 
     /// A bank SMS or alert email. Email is recognised by a subject, an address as sender, or HTML.
     func log(message: String, sender: String?, subject: String? = nil) throws -> Outcome {
-        let isEmail = MessageText.looksLikeEmail(message, sender: sender, subject: subject)
-        let text = isEmail ? MessageText.emailBody(message) : MessageText.stripHTML(message)
-        let parser = BankMessageParser()
-        var parsed = parser.parse(text, sender: sender)
-        // Some emails keep the verb only in the subject ("Debit card purchase") and list the details below.
-        if parsed == nil, let subject, !subject.trimmingCharacters(in: .whitespaces).isEmpty {
-            parsed = parser.parse(subject + ". " + text, sender: sender)
-        }
-        guard let parsed else { return .notATransaction }
-        return try save(parsed, via: isEmail ? .email : .sms, original: text)
+        // Same reading as the "Paste a message" preview: HTML and footer removed, an OTP subject skips
+        // the email, and a subject like "Debit card purchase" helps when the body has no verb.
+        let read = MessageReader.read(message, sender: sender, subject: subject)
+        guard let parsed = read.parsed else { return .notATransaction }
+        return try save(parsed, via: read.isEmail ? .email : .sms, original: read.text)
     }
 
     /// An Apple Pay purchase from the Wallet "Transaction" automation. `amountText` is whatever
@@ -59,6 +54,11 @@ struct TransactionLogger {
                                        merchant: name.isEmpty ? nil : name, date: date)
         let rate = AppSettings.fxToAED[currency] ?? 1
         let tx = Transaction(parsed: parsed, category: category, amountAED: amount * rate, source: nil, via: .manual)
+        // Same as the automatic sources: paying a bill by hand ticks it off instead of counting twice.
+        if tx.isExpense, let bill = try matchingObligation(for: tx) {
+            bill.isPaidThisCycle = true
+            tx.isFixedObligation = true
+        }
         context.insert(tx)
         try context.save()
         WidgetCenter.shared.reloadAllTimelines()
@@ -75,7 +75,10 @@ struct TransactionLogger {
         let fp = DuplicateDetector.fingerprint(parsed)
         let same = try context.fetch(FetchDescriptor<Transaction>(predicate: #Predicate { $0.fingerprint == fp }))
         let date = parsed.date ?? .now
-        if DuplicateDetector.isDuplicate(parsed, at: date, recent: same.map { ($0.fingerprint, $0.date) }) {
+        // Wallet runs once per real tap, so a repeat Apple Pay fingerprint (same amount and shop, two
+        // coffees) is real spending. Wallet vs bank message is handled by the cross-source merge below.
+        if source != .wallet,
+           DuplicateDetector.isDuplicate(parsed, at: date, recent: same.map { ($0.fingerprint, $0.date) }) {
             return .duplicate
         }
         // The exact same text again is a repeat only when the text pins down one moment (its own
@@ -94,7 +97,7 @@ struct TransactionLogger {
         let nearby = try context.fetch(FetchDescriptor<Transaction>(predicate: #Predicate { $0.date >= lo && $0.date <= hi }))
         let incoming = CrossSourceDuplicate.Record(source: source, kind: parsed.kind, amount: parsed.amount,
                                                    currency: parsed.currency, amountAED: amountAED, date: date,
-                                                   merchant: parsed.merchant ?? "")
+                                                   merchant: parsed.merchant ?? "", cardLast4: parsed.cardLast4)
         if let i = CrossSourceDuplicate.match(for: incoming, among: nearby.map(\.record)) {
             let existing = nearby[i]
             try enrich(existing, with: parsed, fingerprint: fp, from: source, original: original, cardName: cardName)
@@ -159,7 +162,7 @@ struct TransactionLogger {
 extension Transaction {
     var record: CrossSourceDuplicate.Record {
         CrossSourceDuplicate.Record(source: source, kind: kind, amount: amount, currency: currency,
-                                    amountAED: amountAED, date: date, merchant: merchant)
+                                    amountAED: amountAED, date: date, merchant: merchant, cardLast4: cardLast4)
     }
 }
 

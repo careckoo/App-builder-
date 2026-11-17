@@ -1,9 +1,9 @@
 import SwiftUI
 import SwiftData
 import Charts
-import MasroofiCore
+import SarfiCore
 
-/// Where the money went this pay cycle, category budgets, and fixed bills.
+/// The "Plan" tab: where the money went this pay cycle, category budgets, and fixed bills.
 struct BudgetsView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.locale) private var locale
@@ -68,7 +68,7 @@ struct BudgetsView: View {
                     Text("Rent, school fees, DEWA or TAQA, Tabby and Tamara installments. They're set aside before your daily amount is worked out, and ticked off when the bank message arrives.")
                 }
             }
-            .navigationTitle("Budgets")
+            .navigationTitle("Plan")
             .sheet(isPresented: $addingBudget) { AddBudgetView() }
             .sheet(isPresented: $addingBill) { AddBillView() }
         }

@@ -1,4 +1,4 @@
-// JavaScript copy of MasroofiCore/BankMessageParser.swift + Categorizer.swift.
+// JavaScript copy of SarfiCore/BankMessageParser.swift + Categorizer.swift.
 // Used by the clickable prototype and by parser.test.mjs to check the rules without a Mac.
 // Keep the two in step: when a rule changes in Swift, change it here too.
 
@@ -6,8 +6,12 @@ const IGNORE = ["otp", "one time password", "one-time password", "verification c
   "activation code", "declined", "insufficient", "failed", "unsuccessful", "offer", "offers", "win",
   "رمز التحقق", "كلمة المرور لمرة واحدة", "رمز التفعيل", "لا تشارك", "مرفوضة", "رفض", "غير كاف", "عرض خاص",
   // Payment reminders and prize draws: no money moved.
-  "minimum payment due", "minimum amount due", "minimum due", "min. due", "min due", "is due on", "reminder", "please pay",
-  "الحد الأدنى", "تذكير", "مستحق الدفع", "مستحقة الدفع", "تاريخ الاستحقاق", "اربح", "السحب على", "جوائز", "جائزة"];
+  // Not a bare "reminder": "Set a reminder in our app" sits under real purchase alerts.
+  "minimum payment due", "minimum amount due", "minimum due", "min. due", "min due", "is due on",
+  "payment reminder", "friendly reminder", "this is a reminder", "please pay",
+  "الحد الأدنى", "تذكير", "مستحق الدفع", "مستحقة الدفع", "تاريخ الاستحقاق", "اربح", "السحب على", "جوائز", "جائزة",
+  // Purchase-approval codes ("Use 482913 to authorise your purchase of AED 500 at AMAZON.AE").
+  "to authorise", "to authorize", "is your code", "your code is", "passcode", "secure code"];
 const REFUND = ["refund", "refunded", "reversal", "reversed", "cashback", "مسترد", "استرداد", "استرجاع", "عكس"];
 const WITHDRAWAL = ["atm", "cash withdrawal", "withdrawn", "withdrawal", "سحب نقدي", "سحب", "صراف"];
 const INCOME = ["credited", "has been deposited", "deposit", "received", "salary", "transfer from", "inward",
@@ -143,6 +147,8 @@ function isAccountReference(s) {
 
 function cleanMerchant(s) {
   let name = s.replace(/^[ ,.\-:]+|[ ,.\-:]+$/g, "");
+  // "at the DUBAI MALL" -> "DUBAI MALL".
+  if (name.toLowerCase().startsWith("the ")) name = name.slice(4).trim();
   const comma = name.indexOf(",");
   if (comma >= 0) name = name.slice(0, comma);
   for (const tail of [" AE", " UAE", " ARE", " ABU DHABI", " DUBAI", " SHARJAH", " AL AIN"]) {
@@ -152,7 +158,7 @@ function cleanMerchant(s) {
 }
 
 function merchant(text) {
-  const stops = String.raw`(?=\s+on\s|\s+from\s|\s+has\s|\s+(?:was|is)\s|\s+من\s+(?:حساب|بطاق)|\s+بتاريخ|\s+في\s+[0-9]|\s+بقيمة|\s+[0-9]{1,2}[/-]|\.\s|\.$|(?:,\s*|\s+)(?:avl|avail|available|bal\b|balance|الرصيد|رصيد)|\s+(?:for\s+)?(?:${CUR})\s?[0-9]|$)`;
+  const stops = String.raw`(?=\s+on\s|\s+from\s|\s+with\s+card|\s+has\s|\s+(?:was|is)\s|\s+من\s+(?:حساب|بطاق)|\s+بتاريخ|\s+في\s+[0-9]|\s+بقيمة|\s+[0-9]{1,2}[/-]|\.\s|\.$|(?:,\s*|\s+)(?:avl|avail|available|bal\b|balance|الرصيد|رصيد)|\s+(?:for\s+)?(?:${CUR})\s?[0-9]|$)`;
   const pats = [String.raw`\bat\s+(.+?)`, String.raw`لدى\s+(.+?)`, String.raw`عند\s+(.+?)`, String.raw`\bto\s+(.+?)`,
     String.raw`إلى\s+(.+?)`, String.raw`\bfrom\s+(.+?)`, String.raw`\bfor\s+([A-Z][A-Za-z0-9 &*'.-]{2,})`];
   for (const p of pats) {
@@ -175,7 +181,7 @@ function incomeSource(text) {
 
 const cardLast4 = text => cap(String.raw`(?:ending(?:\s+with)?|x{2,}|\*+|\bno\.?|رقم|المنتهية ب|المنتهي ب)\s*[x*]*\s*([0-9]{3,4})\b`, text);
 
-// Same list and order as MasroofiCore/BankDirectory.swift.
+// Same list and order as SarfiCore/BankDirectory.swift.
 const BANKS = [["First Abu Dhabi Bank","بنك أبوظبي الأول",["FAB","FABBANK"]],["ADCB","بنك أبوظبي التجاري",["ADCB","ADCBAlert"]],
   ["ADIB","مصرف أبوظبي الإسلامي",["ADIB"]],["Emirates NBD","الإمارات دبي الوطني",["EmiratesNBD","ENBD"]],["Liv.","ليف",["Liv","LIVBANK"]],
   ["Dubai Islamic Bank","بنك دبي الإسلامي",["DIB"]],["Mashreq","المشرق",["Mashreq","MashreqNEO"]],
@@ -191,6 +197,9 @@ function bankName(sender, lower) {
     || BANKS.find(b => b[2].some(id => hasWord(lower, id.toLowerCase())));
   return b ? { en: b[0], ar: b[1] } : null;
 }
+
+// True for an OTP, promo, reminder or failed payment. Also used on an email's subject.
+export const isIgnorable = text => has(normalize(text).toLowerCase(), IGNORE);
 
 export function parse(raw, sender) {
   const text = normalize(raw);
@@ -268,7 +277,7 @@ export function categorize(t, learned = {}) {
   return hit ? hit[1] : (t.kind === "transferOut" ? "transfer" : "other");
 }
 
-// ---- Email text (mirrors MessageText in MasroofiCore/TransactionSources.swift) -------------
+// ---- Email text (mirrors MessageText in SarfiCore/TransactionSources.swift) -------------
 
 const DIRECTION_MARKS = /[‎‏؜‪-‮⁦-⁩​-‍﻿]/g;
 const NAMED_ENTITIES = { nbsp: " ", lt: "<", gt: ">", quot: "\"", apos: "'", ndash: "–", mdash: "—",
@@ -297,20 +306,61 @@ export function stripHtml(raw) {
   return s.replace(/\s+/g, " ").trim();
 }
 
-const FOOTER_MARKERS = ["never share", "do not share", "don't share", "for your security", "for security reasons",
+const FOOTER_MARKERS = ["never share", "do not share", "don't share", "don\u2019t share", "for your security", "for security reasons",
   "disclaimer", "this is a system generated", "this is an automated", "this is an auto-generated",
   "please do not reply", "do not reply to this", "unsubscribe", "regards",
   "لا تشارك", "يرجى عدم الرد", "إخلاء المسؤولية", "مع تحيات", "مع أطيب التحيات"];
+// Promo blocks that banks put under the alert ("Explore our latest offers… Win a car…").
+const PROMO_MARKERS = ["offer", "offers", "win", "reminder", "explore", "terms and conditions", "download",
+  "اربح", "عرض", "عروض", "تذكير"];
 
-// Plain text of an email body, cut before the footer ("never share your OTP" would otherwise make the
-// parser skip the email). Only cuts after the transaction amount.
+// A marker as a whole word: English on ASCII word edges ("win" is not inside "WINGSTOP");
+// Arabic not inside another word ("عرض" is not inside "معرض"), allowing و / ال / ب / ل in front.
+const markerRe = m => ASCII.test(m) ? new RegExp(`(?<![a-z0-9])${esc(m)}(?![a-z0-9])`, "i")
+  : new RegExp(`(?<![\\p{L}\\p{N}])(?:و?ال|و|ب|ل)?${esc(m)}`, "iu");
+
+// Plain text of an email body without the bank's banners, footer and promos (mirrors MessageText.emailBody):
+// - after the transaction amount (the first one that isn't a balance), cut at the earliest footer or promo marker;
+// - before it, drop whole sentences that hold a marker ("For your security, never share your OTP."),
+//   but never the sentence the amount is in, so a banner can't hide the transaction.
 export function emailBody(raw) {
   const text = normalize(stripHtml(raw));
-  let cut = -1;
-  for (const m of FOOTER_MARKERS) {
-    const i = text.search(new RegExp(esc(m), "i"));
-    if (i < 0 || (cut >= 0 && cut <= i)) continue;
-    if (allAmounts(text.slice(0, i)).length) cut = i;
+  const amounts = allAmounts(text);
+  const anchor = amounts.find(a => !precededByBalance(a, text)) || amounts[0];
+  if (!anchor) return text;
+  const markers = [...FOOTER_MARKERS, ...PROMO_MARKERS].map(markerRe);
+  const hasMarker = s => markers.some(re => re.test(s));
+  const rest = text.slice(anchor.end);
+  let cut = rest.length;
+  for (const re of markers) {
+    const i = rest.search(re);
+    if (i >= 0 && i < cut) cut = i;
   }
-  return cut < 0 ? text : text.slice(0, cut).replace(/^[ \-|]+|[ \-|]+$/g, "");
+  // The last piece is the start of the amount's own sentence; it is always kept.
+  const before = sentences(text.slice(0, anchor.start));
+  const own = before.pop();
+  const kept = [...before.filter(s => !hasMarker(s)), own + text.slice(anchor.start, anchor.end + cut)];
+  return kept.join(" ").replace(/ +/g, " ").replace(/^[ \-|]+|[ \-|]+$/g, "");
+}
+
+// Splits after ".", "!" or "?" followed by a space ("AED 10.00" is not a sentence end).
+// The last element is whatever follows the last sentence end, possibly empty.
+const sentences = s => s.replace(/([.!?])\s+/g, "$1\u0001").split("\u0001");
+
+// An email arrives with a subject, an address as sender, or HTML in the body.
+export function looksLikeEmail(body, sender, subject) {
+  if (subject && subject.trim()) return true;
+  if (sender && sender.includes("@")) return true;
+  return /<\/?(?:html|body|div|p|br|table|td|span)\b/i.test(body);
+}
+
+// Mirrors MessageReader.read in Swift: what "Paste a message" previews is exactly what Save logs.
+export function readMessage(message, sender = null, subject = null) {
+  const isEmail = looksLikeEmail(message, sender, subject);
+  const text = isEmail ? emailBody(message) : stripHtml(message);
+  const subj = (subject || "").trim();
+  if (subj && isIgnorable(subj)) return { parsed: null, text, isEmail };
+  let parsed = parse(text, sender);
+  if (!parsed && subj) parsed = parse(subj + ". " + text, sender);
+  return { parsed, text, isEmail };
 }

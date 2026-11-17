@@ -136,24 +136,63 @@ public enum MessageText {
     /// Footer phrases. Bank emails end with "never share your OTP", "offers", disclaimers…
     /// which would make the parser skip the whole email as an OTP or promo.
     static let footerMarkers = [
-        "never share", "do not share", "don't share", "for your security", "for security reasons",
+        "never share", "do not share", "don't share", "don\u{2019}t share", "for your security", "for security reasons",
         "disclaimer", "this is a system generated", "this is an automated", "this is an auto-generated",
         "please do not reply", "do not reply to this", "unsubscribe", "regards",
         "لا تشارك", "يرجى عدم الرد", "إخلاء المسؤولية", "مع تحيات", "مع أطيب التحيات"
     ]
 
-    /// Plain text of an email body, cut before the footer. The cut only happens after the
-    /// transaction amount, so a security banner at the top can't hide the transaction.
+    /// Promo blocks that banks put under the alert ("Explore our latest offers… Win a car…").
+    static let promoMarkers = [
+        "offer", "offers", "win", "reminder", "explore", "terms and conditions", "download",
+        "اربح", "عرض", "عروض", "تذكير"
+    ]
+
+    /// A marker as a whole word: English on ASCII word edges ("win" is not inside "WINGSTOP");
+    /// Arabic not inside another word ("عرض" is not inside "معرض"), allowing و / ال / ب / ل in front.
+    static func markerPattern(_ marker: String) -> String {
+        let e = NSRegularExpression.escapedPattern(for: marker)
+        if marker.unicodeScalars.allSatisfy(\.isASCII) { return "(?<![a-z0-9])" + e + "(?![a-z0-9])" }
+        return #"(?<![\p{L}\p{N}])(?:و?ال|و|ب|ل)?"# + e
+    }
+
+    /// Plain text of an email body without the bank's banners, footer and promos:
+    /// - after the transaction amount (the first one that isn't a balance), cut at the earliest footer
+    ///   or promo marker;
+    /// - before it, drop whole sentences that hold a marker ("For your security, never share your OTP."),
+    ///   but never the sentence the amount is in, so a banner can't hide the transaction.
     public static func emailBody(_ raw: String) -> String {
         let text = BankMessageParser.normalize(stripHTML(raw))
-        var cut: String.Index?
-        for marker in footerMarkers {
-            guard let r = text.range(of: marker, options: .caseInsensitive) else { continue }
-            if let c = cut, c <= r.lowerBound { continue }
-            if !BankMessageParser.allAmounts(in: String(text[..<r.lowerBound])).isEmpty { cut = r.lowerBound }
+        let amounts = BankMessageParser.allAmounts(in: text)
+        guard let anchor = amounts.first(where: { !BankMessageParser.isPrecededByBalanceMarker($0, in: text) }) ?? amounts.first
+        else { return text }
+        let markers = footerMarkers + promoMarkers
+        func hasMarker(_ s: String) -> Bool {
+            markers.contains { s.range(of: markerPattern($0), options: [.regularExpression, .caseInsensitive]) != nil }
         }
-        guard let cut else { return text }
-        return String(text[..<cut]).trimmingCharacters(in: CharacterSet(charactersIn: " -|"))
+
+        var cut = text.endIndex
+        for marker in markers {
+            if let r = text.range(of: markerPattern(marker), options: [.regularExpression, .caseInsensitive],
+                                  range: anchor.range.upperBound..<text.endIndex), r.lowerBound < cut {
+                cut = r.lowerBound
+            }
+        }
+
+        // The last piece is the start of the amount's own sentence; it is always kept.
+        var before = sentences(String(text[..<anchor.range.lowerBound]))
+        let own = before.removeLast()
+        let kept = before.filter { !hasMarker($0) } + [own + String(text[anchor.range.lowerBound..<cut])]
+        return kept.joined(separator: " ")
+            .replacingOccurrences(of: " +", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: " -|"))
+    }
+
+    /// Splits after ".", "!" or "?" followed by a space ("AED 10.00" is not a sentence end).
+    /// The last element is whatever follows the last sentence end, possibly empty.
+    static func sentences(_ s: String) -> [String] {
+        s.replacingOccurrences(of: #"([.!?])\s+"#, with: "$1\u{1}", options: .regularExpression)
+            .split(separator: "\u{1}", omittingEmptySubsequences: false).map(String.init)
     }
 
     /// An email arrives with a subject, an address as sender, or HTML in the body.
@@ -161,6 +200,32 @@ public enum MessageText {
         if let subject, !subject.trimmingCharacters(in: .whitespaces).isEmpty { return true }
         if let sender, sender.contains("@") { return true }
         return body.range(of: #"</?(?:html|body|div|p|br|table|td|span)\b"#, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+}
+
+/// One way to read a bank SMS or email, used by the Shortcuts action, "Paste a message" and its preview,
+/// so what the preview shows is exactly what Save logs.
+public enum MessageReader {
+    public struct Result: Sendable {
+        public let parsed: ParsedTransaction?
+        /// The cleaned text (HTML and footer removed for email) that was parsed.
+        public let text: String
+        public let isEmail: Bool
+    }
+
+    public static func read(_ message: String, sender: String?, subject: String? = nil, receivedAt: Date = .now) -> Result {
+        let isEmail = MessageText.looksLikeEmail(message, sender: sender, subject: subject)
+        let text = isEmail ? MessageText.emailBody(message) : MessageText.stripHTML(message)
+        let subject = subject?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        // "Your one-time password" in the subject: skip, even if the body reads like a purchase.
+        if !subject.isEmpty, BankMessageParser.isIgnorable(subject) { return Result(parsed: nil, text: text, isEmail: isEmail) }
+        let parser = BankMessageParser()
+        var parsed = parser.parse(text, sender: sender, receivedAt: receivedAt)
+        // Some emails keep the verb only in the subject ("Debit card purchase") and list the details below.
+        if parsed == nil, !subject.isEmpty {
+            parsed = parser.parse(subject + ". " + text, sender: sender, receivedAt: receivedAt)
+        }
+        return Result(parsed: parsed, text: text, isEmail: isEmail)
     }
 }
 
@@ -179,28 +244,44 @@ public enum CrossSourceDuplicate {
         public var amountAED: Decimal
         public var date: Date
         public var merchant: String
+        public var cardLast4: String?
 
         public init(source: TransactionSource, kind: TransactionKind, amount: Decimal, currency: String,
-                    amountAED: Decimal, date: Date, merchant: String) {
+                    amountAED: Decimal, date: Date, merchant: String, cardLast4: String? = nil) {
             self.source = source; self.kind = kind; self.amount = amount; self.currency = currency
-            self.amountAED = amountAED; self.date = date; self.merchant = merchant
+            self.amountAED = amountAED; self.date = date; self.merchant = merchant; self.cardLast4 = cardLast4
         }
     }
 
     /// Index of the existing record that is the same purchase as `incoming`, if any.
     /// Only different automatic sources are compared: two SMS are handled by `DuplicateDetector`,
     /// and manual entries are the person's own choice.
+    /// - Different card endings (both known) are never the same purchase.
+    /// - A match on both merchant names wins. When a merchant name is missing on either side, the
+    ///   record is merged only if it is the one and only candidate; with two, guessing could join the
+    ///   wrong purchases, so both are kept.
     public static func match(for incoming: Record, among existing: [Record], window: TimeInterval = window) -> Int? {
         guard incoming.source.isAutomatic, incoming.kind == .purchase else { return nil }
-        return existing.indices
-            .filter { i in
-                let e = existing[i]
-                return e.source.isAutomatic && e.source != incoming.source && e.kind == .purchase
-                    && sameAmount(e, incoming)
-                    && abs(e.date.timeIntervalSince(incoming.date)) <= window
-                    && merchantsSimilar(e.merchant, incoming.merchant)
-            }
-            .min { abs(existing[$0].date.timeIntervalSince(incoming.date)) < abs(existing[$1].date.timeIntervalSince(incoming.date)) }
+        let candidates = existing.indices.filter { i in
+            let e = existing[i]
+            return e.source.isAutomatic && e.source != incoming.source && e.kind == .purchase
+                && sameAmount(e, incoming)
+                && abs(e.date.timeIntervalSince(incoming.date)) <= window
+                && sameCard(e.cardLast4, incoming.cardLast4)
+                && merchantsSimilar(e.merchant, incoming.merchant)
+        }
+        let named = candidates.filter { !words(existing[$0].merchant).isEmpty && !words(incoming.merchant).isEmpty }
+        let closest: (Int, Int) -> Bool = {
+            abs(existing[$0].date.timeIntervalSince(incoming.date)) < abs(existing[$1].date.timeIntervalSince(incoming.date))
+        }
+        if !named.isEmpty { return named.min(by: closest) }
+        return candidates.count == 1 ? candidates[0] : nil
+    }
+
+    /// Card endings disagree only when both are known. Some banks show 3 digits ("*822"), Wallet 4.
+    static func sameCard(_ a: String?, _ b: String?) -> Bool {
+        guard let a, let b, !a.isEmpty, !b.isEmpty else { return true }
+        return a.hasSuffix(b) || b.hasSuffix(a)
     }
 
     static func sameAmount(_ a: Record, _ b: Record) -> Bool {

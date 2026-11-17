@@ -1,6 +1,6 @@
 import Foundation
 import SwiftData
-import MasroofiCore
+import SarfiCore
 
 /// One money movement. Created automatically from a bank SMS or email or an Apple Pay purchase,
 /// or by hand when someone pays cash.
@@ -95,7 +95,7 @@ final class MerchantRule {
 
 /// Settings shared by the app, the widget and the App Intent (stored in the App Group).
 enum AppSettings {
-    static let appGroup = "group.ae.masroofi.shared"
+    static let appGroup = "group.ae.sarfi.shared"
     static var defaults: UserDefaults { UserDefaults(suiteName: appGroup) ?? .standard }
 
     static var payday: Int {

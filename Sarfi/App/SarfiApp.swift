@@ -1,10 +1,10 @@
 import SwiftUI
 import SwiftData
 import WidgetKit
-import MasroofiCore
+import SarfiCore
 
 @main
-struct MasroofiApp: App {
+struct SarfiApp: App {
     @AppStorage("didFinishSetup", store: AppSettings.defaults) private var didFinishSetup = false
     @Environment(\.scenePhase) private var scenePhase
 
@@ -37,7 +37,7 @@ struct RootTabView: View {
             ActivityView()
                 .tabItem { Label("Activity", systemImage: "list.bullet.rectangle") }
             BudgetsView()
-                .tabItem { Label("Budgets", systemImage: "chart.pie.fill") }
+                .tabItem { Label("Plan", systemImage: "chart.pie.fill") }
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }
         }

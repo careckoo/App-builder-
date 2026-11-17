@@ -1,5 +1,5 @@
 import XCTest
-@testable import MasroofiCore
+@testable import SarfiCore
 
 /// The sample messages follow the shape of real UAE bank alerts, with fake numbers.
 /// Add anonymised real messages here whenever a bank changes its wording.
@@ -223,9 +223,37 @@ final class BankMessageParserTests: XCTestCase {
             "تذكير: يرجى سداد الحد الأدنى 250 درهم لبطاقتك",
             "Your credit limit has been increased to AED 20,000.00",
             "اربح جوائز قيمة! استخدم بطاقتك بقيمة 100 درهم وادخل السحب",
-            "ادخل السحب على جوائز بقيمة 50,000 درهم عند استخدام بطاقتك"
+            "ادخل السحب على جوائز بقيمة 50,000 درهم عند استخدام بطاقتك",
+            // m2: real reminder wordings are still skipped.
+            "Friendly reminder: your payment of AED 300.00 to ETISALAT is coming up.",
+            "Payment reminder: AED 450.00 for your Tamara order."
         ]
         for m in messages { XCTAssertNil(parser.parse(m), m) }
+    }
+
+    // m2: "reminder" alone is not a reminder message.
+    func testSetAReminderUnderPurchaseStillParses() throws {
+        let t = try XCTUnwrap(parser.parse("Your card ending 1234 was used for AED 50.00 at CARREFOUR. Set a reminder in our app."))
+        XCTAssertEqual(t.kind, .purchase)
+        XCTAssertEqual(t.amount, 50)
+        XCTAssertEqual(t.merchant, "CARREFOUR")
+        XCTAssertEqual(t.cardLast4, "1234")
+        XCTAssertEqual(Categorizer().category(for: t), .groceries)
+    }
+
+    func testMerchantStopsAtWithCard() throws {
+        let t = try XCTUnwrap(parser.parse("Purchase of AED 75.00 at DU SHOP with card ending 1234 on 17/11/2026"))
+        XCTAssertEqual(t.kind, .purchase)
+        XCTAssertEqual(t.amount, 75)
+        XCTAssertEqual(t.merchant, "DU SHOP")
+        XCTAssertEqual(t.cardLast4, "1234")
+        XCTAssertEqual(Categorizer().category(for: t), .telecom)
+    }
+
+    func testMerchantDropsLeadingThe() throws {
+        let t = try XCTUnwrap(parser.parse("Card ending 1234 was used for AED 50.00 at the DUBAI MALL"))
+        XCTAssertEqual(t.merchant, "DUBAI MALL")
+        XCTAssertEqual(Categorizer().category(for: t), .shopping)
     }
 
     // MARK: - B7: balance markers are whole words

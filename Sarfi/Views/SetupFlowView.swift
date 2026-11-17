@@ -1,6 +1,6 @@
 import SwiftUI
 import SwiftData
-import MasroofiCore
+import SarfiCore
 
 /// First launch: three short steps, about two minutes in total.
 /// 1. Salary and payday  2. Pick your banks  3. Add the Shortcuts automation (with a live test).
@@ -36,7 +36,7 @@ struct SetupFlowView: View {
             Spacer()
             Image(systemName: "text.bubble.fill").font(.system(size: 64)).foregroundStyle(Theme.accent)
             Text("Your bank already texts you every purchase").font(.title.bold()).multilineTextAlignment(.center)
-            Text("Masroofi reads those messages and keeps your budget for you. No typing numbers, no bank passwords, and nothing leaves your iPhone.")
+            Text("Sarfi reads those messages and keeps your budget for you. No typing numbers, no bank passwords, and nothing leaves your iPhone.")
                 .multilineTextAlignment(.center).foregroundStyle(.secondary)
             Spacer()
             Button("Let's start") { withAnimation { step = 1 } }.buttonStyle(.borderedProminent).controlSize(.large)
@@ -55,7 +55,7 @@ struct SetupFlowView: View {
             } header: {
                 Text("Your salary")
             } footer: {
-                Text("This is the only time you'll type a number. When your salary SMS arrives, Masroofi uses the real amount.")
+                Text("This is the only time you'll type a number. When your salary SMS arrives, Sarfi uses the real amount.")
             }
             Button("Next") { withAnimation { step = 2 } }.disabled(income <= 0)
         }
@@ -86,7 +86,7 @@ struct SetupFlowView: View {
 }
 
 /// Walks the person through the Shortcuts automations. Apple doesn't let apps create automations
-/// or read other apps' notifications, so Masroofi offers three sources, each a few clearly-shown taps:
+/// or read other apps' notifications, so Sarfi offers three sources, each a few clearly-shown taps:
 /// Apple Pay (works with any bank card in Wallet), bank SMS, and bank alert emails.
 struct ShortcutGuideView: View {
     let banks: [Bank]
@@ -113,7 +113,7 @@ struct ShortcutGuideView: View {
             Section {
                 step(1, "In Shortcuts, tap Automation, then New Automation (+), and choose Transaction.")
                 step(2, "Choose your cards (all of them is fine), choose Run Immediately, then tap Next.")
-                step(3, "Search for Masroofi and choose “Log Apple Pay purchase”.")
+                step(3, "Search for Sarfi and choose “Log Apple Pay purchase”.")
                 step(4, "Set Amount, Merchant and Card to the matching Shortcut Input (Amount, Merchant, Card or Pass). Tap Done.")
             } header: {
                 Label("Apple Pay — recommended", systemImage: "wallet.pass.fill")
@@ -124,7 +124,7 @@ struct ShortcutGuideView: View {
             Section {
                 step(1, "In Shortcuts, tap Automation, then New Automation (+), and choose Message.")
                 step(2, "Next to Sender, add: \(senders). Choose Run Immediately, then tap Next.")
-                step(3, "Search for Masroofi, choose “Log bank message or email”, then tap Message and pick Shortcut Input → Message.")
+                step(3, "Search for Sarfi, choose “Log bank message or email”, then tap Message and pick Shortcut Input → Message.")
             } header: {
                 Label("Bank SMS", systemImage: "message.fill")
             } footer: {
@@ -135,7 +135,7 @@ struct ShortcutGuideView: View {
                 step(1, "In your bank's app, turn on email alerts for card transactions.")
                 step(2, "In Shortcuts, tap Automation, then New Automation (+), and choose Email.")
                 step(3, "Next to Sender, add your bank's alert email address. Choose Run Immediately, then tap Next.")
-                step(4, "Search for Masroofi, choose “Log bank message or email”, then set Message to the email's body, and Sender and Subject to the email's sender and subject.")
+                step(4, "Search for Sarfi, choose “Log bank message or email”, then set Message to the email's body, and Sender and Subject to the email's sender and subject.")
             } header: {
                 Label("Bank email alerts", systemImage: "envelope.fill")
             } footer: {
@@ -197,14 +197,14 @@ struct SettingsView: View {
                     NavigationLink("Automatic tracking setup") { ShortcutGuideView(banks: BankDirectory.all) {} }
                 }
                 Section {
-                    ShareLink(item: CSVExport.make(transactions), preview: SharePreview("masroofi.csv")) {
+                    ShareLink(item: CSVExport.make(transactions), preview: SharePreview("sarfi.csv")) {
                         Label("Export to CSV", systemImage: "square.and.arrow.up")
                     }
                     Button("Language", systemImage: "globe") {
                         UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!)
                     }
                 } footer: {
-                    Text("Your messages and transactions stay on this iPhone. Masroofi has no server and never asks for bank logins.")
+                    Text("Your messages and transactions stay on this iPhone. Sarfi has no server and never asks for bank logins.")
                 }
             }
             .navigationTitle("Settings")

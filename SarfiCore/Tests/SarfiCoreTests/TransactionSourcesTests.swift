@@ -1,5 +1,5 @@
 import XCTest
-@testable import MasroofiCore
+@testable import SarfiCore
 
 /// Apple Pay amounts, bank alert emails, and the same purchase reported by two sources.
 final class TransactionSourcesTests: XCTestCase {
@@ -69,9 +69,70 @@ final class TransactionSourcesTests: XCTestCase {
         XCTAssertNil(BankMessageParser().parse(MessageText.emailBody("<p>Your OTP for AED 45.50 at AMAZON is 482913. Do not share it.</p>")))
     }
 
-    func testSecurityBannerBeforeAmountIsKept() {
-        let s = "For your security, check alerts. AED 10.00 debited at X"
-        XCTAssertEqual(MessageText.emailBody(s), s)
+    /// A banner sentence above the amount is dropped; the amount's own sentence is always kept.
+    func testSecurityBannerBeforeAmountDoesNotHideIt() throws {
+        let text = MessageText.emailBody("For your security, check alerts. AED 10.00 debited at X")
+        XCTAssertEqual(text, "AED 10.00 debited at X")
+        XCTAssertEqual(try XCTUnwrap(BankMessageParser().parse(text)).amount, 10)
+    }
+
+    // M1: purchase-approval codes sent by email.
+    func testAuthorisationCodeEmailsAreSkipped() {
+        XCTAssertNil(BankMessageParser().parse(MessageText.emailBody(
+            "<p>Use 482913 to authorise your purchase of AED 500.00 at AMAZON.AE. Do not share this code with anyone.</p>")))
+        XCTAssertNil(BankMessageParser().parse(MessageText.emailBody(
+            "482913 is your code for purchase of AED 500.00 at AMAZON.AE. Never share this code.")))
+    }
+
+    func testOTPSubjectSkipsTheEmail() {
+        XCTAssertTrue(BankMessageParser.isIgnorable("Your one-time password"))
+        XCTAssertFalse(BankMessageParser.isIgnorable("Debit card purchase"))
+        XCTAssertNil(MessageReader.read("<p>Card ending 1234 was used for AED 500.00 at AMAZON.AE</p>",
+                                        sender: "alerts@bank.ae", subject: "Your OTP").parsed)
+    }
+
+    func testSubjectWithTheVerbStillHelps() throws {
+        let r = MessageReader.read("<p>Amount: AED 42.00</p><p>Merchant: at NOON.COM</p>",
+                                   sender: "alerts@bank.ae", subject: "Debit card purchase")
+        XCTAssertTrue(r.isEmail)
+        let t = try XCTUnwrap(r.parsed)
+        XCTAssertEqual(t.amount, 42)
+        XCTAssertEqual(t.kind, .purchase)
+    }
+
+    // M2: real bank emails with a security banner above the alert and promos below it.
+    func testSecurityBannerAboveAmountAndInFooter() throws {
+        let body = "<p>For your security, never share your OTP or PIN with anyone.</p>"
+            + "<p>Dear Customer, your Debit Card ending 4321 was used for AED 89.00 at LULU HYPERMARKET on 17/11/2026 18:05.</p>"
+            + "<p>Available balance AED 3,200.00</p><p>Never share your OTP, PIN or password. Regards, Your Bank</p>"
+        let t = try XCTUnwrap(BankMessageParser().parse(MessageText.emailBody(body), sender: "alerts@bank.ae"))
+        XCTAssertEqual(t.kind, .purchase)
+        XCTAssertEqual(t.amount, 89)
+        XCTAssertEqual(t.merchant, "LULU HYPERMARKET")
+        XCTAssertEqual(t.cardLast4, "4321")
+        XCTAssertEqual(t.balanceAfter, 3200)
+    }
+
+    func testPromoBlockAfterAmount() throws {
+        let body = "<p>Dear Customer, your Credit Card ending 5678 was used for AED 230.00 at IKEA on 17/11/2026 12:40.</p>"
+            + "<p>Explore our latest offers in the app. Win a car when you spend AED 500 or more! Terms and conditions apply.</p>"
+        let t = try XCTUnwrap(BankMessageParser().parse(MessageText.emailBody(body), sender: "alerts@bank.ae"))
+        XCTAssertEqual(t.kind, .purchase)
+        XCTAssertEqual(t.amount, 230)
+        XCTAssertEqual(t.merchant, "IKEA")
+    }
+
+    func testPromoMarkersAreWholeWords() {
+        XCTAssertEqual(MessageText.emailBody("Card ending 1234 was used for AED 25.00 at WINGSTOP. Win AED 100!"),
+                       "Card ending 1234 was used for AED 25.00 at WINGSTOP.")
+        XCTAssertEqual(MessageText.emailBody("تم خصم 900 درهم لدى معرض السيارات. عروض حصرية لك"),
+                       "تم خصم 900 درهم لدى معرض السيارات.")
+    }
+
+    // m3: curly apostrophe.
+    func testCurlyApostropheFooter() {
+        XCTAssertEqual(MessageText.emailBody("Card ending 1234 was used for AED 20.00 at X. Don\u{2019}t share your OTP."),
+                       "Card ending 1234 was used for AED 20.00 at X.")
     }
 
     func testLooksLikeEmail() {
@@ -86,10 +147,32 @@ final class TransactionSourcesTests: XCTestCase {
     let now = Date(timeIntervalSince1970: 1_800_000_000)
 
     func record(_ source: TransactionSource, _ amount: Decimal, _ merchant: String, after seconds: TimeInterval = 0,
-                kind: TransactionKind = .purchase, currency: String = "AED") -> CrossSourceDuplicate.Record {
+                kind: TransactionKind = .purchase, currency: String = "AED", card: String? = nil) -> CrossSourceDuplicate.Record {
         CrossSourceDuplicate.Record(source: source, kind: kind, amount: amount, currency: currency,
                                     amountAED: currency == "AED" ? amount : amount * Decimal(string: "3.6725")!,
-                                    date: now.addingTimeInterval(seconds), merchant: merchant)
+                                    date: now.addingTimeInterval(seconds), merchant: merchant, cardLast4: card)
+    }
+
+    // m1: merge safety.
+    func testDifferentCardEndingsAreNotMerged() {
+        let wallet = record(.wallet, 45.5, "Carrefour", card: "1234")
+        XCTAssertNil(CrossSourceDuplicate.match(for: record(.sms, 45.5, "CARREFOUR", after: 30, card: "9876"), among: [wallet]))
+        XCTAssertEqual(CrossSourceDuplicate.match(for: record(.sms, 45.5, "CARREFOUR", after: 30, card: "1234"), among: [wallet]), 0)
+        // A 3-digit ending ("*234") agrees with the 4-digit one; an unknown ending never blocks.
+        XCTAssertEqual(CrossSourceDuplicate.match(for: record(.sms, 45.5, "CARREFOUR", after: 30, card: "234"), among: [wallet]), 0)
+        XCTAssertEqual(CrossSourceDuplicate.match(for: record(.sms, 45.5, "CARREFOUR", after: 30), among: [wallet]), 0)
+    }
+
+    func testEmptyMerchantMergesOnlyWithOneCandidate() {
+        let two = [record(.wallet, 20, "Starbucks", after: -60), record(.wallet, 20, "Costa", after: -30)]
+        XCTAssertNil(CrossSourceDuplicate.match(for: record(.email, 20, ""), among: two))
+        XCTAssertEqual(CrossSourceDuplicate.match(for: record(.email, 20, ""), among: [two[0]]), 0)
+        // A named match wins over a record with no merchant.
+        let mixed = [record(.sms, 20, "", after: -10), record(.sms, 20, "STARBUCKS", after: -60)]
+        XCTAssertEqual(CrossSourceDuplicate.match(for: record(.wallet, 20, "Starbucks"), among: mixed), 1)
+        // Two records without a merchant: don't guess.
+        XCTAssertNil(CrossSourceDuplicate.match(for: record(.wallet, 20, "Starbucks"),
+                                                among: [record(.sms, 20, "", after: -10), record(.sms, 20, "", after: -20)]))
     }
 
     func testWalletThenSMSIsOnePurchase() {

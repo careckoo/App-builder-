@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>Masroofi Prototype</title>
+<title>Sarfi Prototype</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -161,8 +161,8 @@ td:first-child { font-weight: 600; }
 <div class="wrap" id="app">
   <header class="top">
     <div class="brand">
-      <h1 data-i18n="heroTitle">Masroofi <span>مصروفي</span></h1>
-      <p data-i18n="heroSub">Your UAE bank already texts you every purchase. Masroofi reads those messages and runs your budget, so you never type a number.</p>
+      <h1 data-i18n="heroTitle">Sarfi <span>صرفي</span></h1>
+      <p data-i18n="heroSub">Your UAE bank already texts you every purchase. Sarfi reads those messages and runs your budget, so you never type a number.</p>
     </div>
     <div class="lang" role="group" aria-label="Language">
       <button id="lang-en" aria-pressed="true">English</button>
@@ -185,7 +185,7 @@ td:first-child { font-weight: 600; }
       <div class="card">
         <div class="eyebrow" data-i18n="tryEyebrow">Try it</div>
         <h2 data-i18n="tryTitle">Send the phone a bank SMS</h2>
-        <p data-i18n="trySub">Tap a message. It arrives like a real SMS, the Shortcuts automation hands it to Masroofi, and the phone updates. Sample data, not real accounts.</p>
+        <p data-i18n="trySub">Tap a message. It arrives like a real SMS, the Shortcuts automation hands it to Sarfi, and the phone updates. Sample data, not real accounts.</p>
         <div class="samples" id="samples"></div>
         <div class="custom">
           <label for="custom-msg" data-i18n="pasteLabel">Or paste your own bank message (stays in this browser)</label>
@@ -204,8 +204,8 @@ td:first-child { font-weight: 600; }
         <p data-i18n="howSub">iOS doesn't let any app read your SMS inbox. Apple's supported route is a Shortcuts automation that you approve per sender. After that it runs by itself in the background.</p>
         <div class="flow">
           <div><b data-i18n="f1t">1. Bank texts you</b><p data-i18n="f1">ADCB, FAB, Emirates NBD, ADIB, Liv, Wio and others send an alert for every card payment.</p></div>
-          <div><b data-i18n="f2t">2. Automation runs</b><p data-i18n="f2">“When I get a message from ADCB → Run immediately → Masroofi: Log bank message.”</p></div>
-          <div><b data-i18n="f3t">3. Masroofi updates</b><p data-i18n="f3">It reads amount, merchant, card and balance, picks a category, skips OTPs and duplicates, and refreshes the widget.</p></div>
+          <div><b data-i18n="f2t">2. Automation runs</b><p data-i18n="f2">“When I get a message from ADCB → Run immediately → Sarfi: Log bank message.”</p></div>
+          <div><b data-i18n="f3t">3. Sarfi updates</b><p data-i18n="f3">It reads amount, merchant, card and balance, picks a category, skips OTPs and duplicates, and refreshes the widget.</p></div>
         </div>
       </div>
 
@@ -214,7 +214,7 @@ td:first-child { font-weight: 600; }
         <h2 data-i18n="cmpTitle">OutCap + Budget app, built for UAE banks</h2>
         <div class="tablewrap">
           <table>
-            <thead><tr><th></th><th>OutCap</th><th>Budget app</th><th class="us">Masroofi</th></tr></thead>
+            <thead><tr><th></th><th>OutCap</th><th>Budget app</th><th class="us">Sarfi</th></tr></thead>
             <tbody id="cmp"></tbody>
           </table>
         </div>
@@ -230,16 +230,16 @@ import { parse, categorize, CATEGORIES } from "./parser.js";
 // ---------- Text in both languages ----------
 const T = {
   en: {
-    heroTitle: 'Masroofi <span>مصروفي</span>',
-    heroSub: "Your UAE bank already texts you every purchase. Masroofi reads those messages and runs your budget, so you never type a number.",
+    heroTitle: 'Sarfi <span>صرفي</span>',
+    heroSub: "Your UAE bank already texts you every purchase. Sarfi reads those messages and runs your budget, so you never type a number.",
     tryEyebrow: "Try it", tryTitle: "Send the phone a bank SMS",
-    trySub: "Tap a message. It arrives like a real SMS, the Shortcuts automation hands it to Masroofi, and the phone updates. Sample data, not real accounts.",
+    trySub: "Tap a message. It arrives like a real SMS, the Shortcuts automation hands it to Sarfi, and the phone updates. Sample data, not real accounts.",
     pasteLabel: "Or paste your own bank message (stays in this browser)", send: "Send to phone",
     howEyebrow: "How it works without typing", howTitle: "One Shortcuts automation, set up once",
     howSub: "iOS doesn't let any app read your SMS inbox. Apple's supported route is a Shortcuts automation that you approve per sender. After that it runs by itself in the background.",
     f1t: "1. Bank texts you", f1: "ADCB, FAB, Emirates NBD, ADIB, Liv, Wio and others send an alert for every card payment.",
-    f2t: "2. Automation runs", f2: "“When I get a message from ADCB → Run immediately → Masroofi: Log bank message.”",
-    f3t: "3. Masroofi updates", f3: "It reads amount, merchant, card and balance, picks a category, skips OTPs and duplicates, and refreshes the widget.",
+    f2t: "2. Automation runs", f2: "“When I get a message from ADCB → Run immediately → Sarfi: Log bank message.”",
+    f3t: "3. Sarfi updates", f3: "It reads amount, merchant, card and balance, picks a category, skips OTPs and duplicates, and refreshes the widget.",
     cmpEyebrow: "What we took from each app", cmpTitle: "OutCap + Budget app, built for UAE banks",
     cmpNote: "Based on each app's App Store listing. OutCap reads Saudi bank SMS; Budget app relies on manual, voice, receipt and CSV entry.",
     tabs: ["Today", "Activity", "Budgets", "Setup"],
@@ -251,14 +251,14 @@ const T = {
       "Open Shortcuts → Automation → New Automation (+).",
       "Choose Message. Sender: ADCB, FAB, EmiratesNBD (as shown in Messages).",
       "Choose Run Immediately → Next.",
-      "Add Masroofi “Log bank message or email” → Message: Shortcut Input.",
+      "Add Sarfi “Log bank message or email” → Message: Shortcut Input.",
       "Done. Your next card payment logs itself."],
     privacy: "Everything stays on your iPhone. No bank logins, no server.",
     now: "now", logged: "Left today", skipped: "Not a transaction, skipped", dup: "Already logged",
     pAmount: "Amount", pType: "Type", pWhere: "Merchant", pCard: "Card", pCat: "Category", pBal: "Balance after",
     kinds: { purchase: "Purchase", withdrawal: "ATM cash", transferOut: "Transfer out", income: "Income", refund: "Refund", cardPayment: "Card bill payment", ownTransfer: "Between your accounts" },
     neutral: "doesn't change today's amount",
-    willSkip: "Masroofi would skip this message (OTP, promo, declined, or no amount).",
+    willSkip: "Sarfi would skip this message (OTP, promo, declined, or no amount).",
     cmpRows: [
       ["Reads bank SMS automatically", "yes:Saudi banks", "no:Manual / AI import", "yes:UAE banks, Arabic + English"],
       ["One daily “safe to spend” number", "yes:", "no:", "yes:Pay-cycle based"],
@@ -270,16 +270,16 @@ const T = {
       ["Data stays on device", "yes:", "yes:iCloud sync", "yes:"]],
   },
   ar: {
-    heroTitle: 'مصروفي <span>Masroofi</span>',
-    heroSub: "بنكك في الإمارات يرسل لك رسالة مع كل عملية. مصروفي يقرأ هذه الرسائل ويدير ميزانيتك، بدون ما تكتب ولا رقم.",
+    heroTitle: 'صرفي <span>Sarfi</span>',
+    heroSub: "بنكك في الإمارات يرسل لك رسالة مع كل عملية. صرفي يقرأ هذه الرسائل ويدير ميزانيتك، بدون ما تكتب ولا رقم.",
     tryEyebrow: "جرّبه", tryTitle: "أرسل للجوال رسالة من البنك",
-    trySub: "اضغط على رسالة. توصل مثل رسالة حقيقية، والأتمتة في تطبيق الاختصارات تسلّمها لمصروفي، والجوال يتحدّث. بيانات تجريبية وليست حسابات حقيقية.",
+    trySub: "اضغط على رسالة. توصل مثل رسالة حقيقية، والأتمتة في تطبيق الاختصارات تسلّمها لصرفي، والجوال يتحدّث. بيانات تجريبية وليست حسابات حقيقية.",
     pasteLabel: "أو الصق رسالة من بنكك (تبقى في هذا المتصفح)", send: "أرسل للجوال",
     howEyebrow: "كيف يشتغل بدون إدخال", howTitle: "أتمتة واحدة في الاختصارات، مرة وحدة",
     howSub: "نظام iOS لا يسمح لأي تطبيق بقراءة صندوق الرسائل. الطريقة المعتمدة من Apple هي أتمتة في تطبيق الاختصارات توافق عليها لكل مرسل. بعدها تشتغل لحالها في الخلفية.",
     f1t: "١. البنك يرسل لك", f1: "أبوظبي التجاري، أبوظبي الأول، الإمارات دبي الوطني، مصرف أبوظبي الإسلامي، ليف، ويو وغيرها ترسل تنبيه مع كل عملية.",
-    f2t: "٢. الأتمتة تشتغل", f2: "«عند وصول رسالة من ADCB ← تشغيل فوراً ← مصروفي: تسجيل رسالة البنك».",
-    f3t: "٣. مصروفي يتحدّث", f3: "يقرأ المبلغ والمتجر والبطاقة والرصيد، ويختار الفئة، ويتجاهل رموز التحقق والمكرر، ويحدّث الأداة.",
+    f2t: "٢. الأتمتة تشتغل", f2: "«عند وصول رسالة من ADCB ← تشغيل فوراً ← صرفي: تسجيل رسالة البنك».",
+    f3t: "٣. صرفي يتحدّث", f3: "يقرأ المبلغ والمتجر والبطاقة والرصيد، ويختار الفئة، ويتجاهل رموز التحقق والمكرر، ويحدّث الأداة.",
     cmpEyebrow: "ماذا أخذنا من كل تطبيق", cmpTitle: "OutCap و Budget app، مصمم لبنوك الإمارات",
     cmpNote: "حسب صفحة كل تطبيق في App Store. ‏OutCap يقرأ رسائل البنوك السعودية، و Budget app يعتمد على الإدخال اليدوي أو الصوتي أو الإيصالات أو ملفات CSV.",
     tabs: ["اليوم", "الحركات", "الميزانيات", "الإعداد"],
@@ -291,14 +291,14 @@ const T = {
       "افتح الاختصارات ← الأتمتة ← أتمتة جديدة (+).",
       "اختر «رسالة». المرسل: ADCB أو FAB أو EmiratesNBD (كما يظهر في الرسائل).",
       "اختر «تشغيل فوراً» ← التالي.",
-      "أضف مصروفي «تسجيل رسالة البنك» ← الرسالة: مُدخل الاختصار.",
+      "أضف صرفي «تسجيل رسالة البنك» ← الرسالة: مُدخل الاختصار.",
       "تم. عمليتك القادمة تتسجّل لحالها."],
     privacy: "كل شيء يبقى على جوالك. بدون بيانات دخول البنك، وبدون خادم.",
     now: "الآن", logged: "المتبقي اليوم", skipped: "ليست عملية مالية، تم التجاهل", dup: "مسجّلة من قبل",
     pAmount: "المبلغ", pType: "النوع", pWhere: "المتجر", pCard: "البطاقة", pCat: "الفئة", pBal: "الرصيد بعدها",
     kinds: { purchase: "شراء", withdrawal: "سحب نقدي", transferOut: "تحويل صادر", income: "دخل", refund: "استرداد", cardPayment: "سداد بطاقة", ownTransfer: "بين حساباتك" },
     neutral: "ما يغيّر مبلغ اليوم",
-    willSkip: "مصروفي بيتجاهل هذه الرسالة (رمز تحقق، عرض، عملية مرفوضة، أو بدون مبلغ).",
+    willSkip: "صرفي بيتجاهل هذه الرسالة (رمز تحقق، عرض، عملية مرفوضة، أو بدون مبلغ).",
     cmpRows: [
       ["يقرأ رسائل البنك تلقائياً", "yes:بنوك سعودية", "no:يدوي / استيراد بالذكاء الاصطناعي", "yes:بنوك الإمارات، عربي وإنجليزي"],
       ["رقم يومي «تقدر تصرف»", "yes:", "no:", "yes:حسب دورة الراتب"],
@@ -349,7 +349,7 @@ const SAMPLES = [
 ];
 
 let lang = "en", tab = 0, lastAdded = null;
-try { lang = localStorage.getItem("masroofi-lang") || "en"; } catch {}
+try { lang = localStorage.getItem("sarfi-lang") || "en"; } catch {}
 
 // ---------- Logic (mirrors SafeToSpend.swift) ----------
 function cycle() {
@@ -402,7 +402,7 @@ function viewToday() {
   const spent = Math.max(0, s.allowance - s.today), p = s.allowance ? Math.min(1, spent / s.allowance) : 1;
   const C = 2 * Math.PI * 92;
   const todays = txs.filter(t => t.date >= new Date(2026, 10, 17)).sort((a, b) => b.date - a.date);
-  return `<div class="navtitle">${lang === "ar" ? "مصروفي" : "Masroofi"}</div>
+  return `<div class="navtitle">${lang === "ar" ? "صرفي" : "Sarfi"}</div>
     <div class="ringbox">
       <svg viewBox="0 0 220 220" role="img" aria-label="${esc(L.safe)}">
         <circle cx="110" cy="110" r="92" fill="none" stroke="var(--line)" stroke-width="16"/>
@@ -484,7 +484,7 @@ function notify(sender, text, appStyle) {
   const box = $("#notes");
   const n = document.createElement("div");
   n.className = "note";
-  n.innerHTML = `<header><b>${appStyle ? (lang === "ar" ? "مصروفي" : "Masroofi") : esc(sender)}</b><span>${T[lang].now}</span></header><p dir="auto">${esc(text)}</p>`;
+  n.innerHTML = `<header><b>${appStyle ? (lang === "ar" ? "صرفي" : "Sarfi") : esc(sender)}</b><span>${T[lang].now}</span></header><p dir="auto">${esc(text)}</p>`;
   box.prepend(n);
   setTimeout(() => { n.classList.add("out"); setTimeout(() => n.remove(), 400); }, appStyle ? 3200 : 2600);
 }
@@ -543,7 +543,7 @@ $("#send-custom").addEventListener("click", () => {
 $("#custom-msg").addEventListener("input", preview);
 $("#custom-sender").addEventListener("input", preview);
 for (const l of ["en", "ar"]) $("#lang-" + l).addEventListener("click", () => {
-  lang = l; try { localStorage.setItem("masroofi-lang", l); } catch {}
+  lang = l; try { localStorage.setItem("sarfi-lang", l); } catch {}
   render();
 });
 

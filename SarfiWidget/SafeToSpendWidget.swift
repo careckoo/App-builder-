@@ -1,7 +1,7 @@
 import WidgetKit
 import SwiftUI
 import SwiftData
-import MasroofiCore
+import SarfiCore
 
 /// Home Screen and Lock Screen widget: today's safe-to-spend number.
 /// Reloaded by `TransactionLogger` every time a bank message is logged.
@@ -51,8 +51,8 @@ struct SafeToSpendWidgetView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Safe to spend today").font(.caption).foregroundStyle(.secondary)
                     Text(Theme.aed(max(0, safe.today)))
-                        .font(.system(.title, design: .rounded).bold())
-                        .foregroundStyle(Theme.color(for: safe.status))
+                        .font(.system(.title, design: .rounded).bold().monospacedDigit())
+                        .foregroundStyle(.primary)
                         .minimumScaleFactor(0.6)
                     Spacer()
                     Text("\(safe.daysLeft) days to payday").font(.caption2).foregroundStyle(.secondary)
@@ -60,7 +60,7 @@ struct SafeToSpendWidgetView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         } else {
-            Text("Open Masroofi to finish setup").font(.caption)
+            Text("Open Sarfi to finish setup").font(.caption)
         }
     }
 }

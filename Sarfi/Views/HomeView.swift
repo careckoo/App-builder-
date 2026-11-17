@@ -1,6 +1,6 @@
 import SwiftUI
 import SwiftData
-import MasroofiCore
+import SarfiCore
 
 /// The first screen: one number, a ring, and today's spending. Everything else is one tap away.
 struct HomeView: View {
@@ -42,7 +42,7 @@ struct HomeView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Masroofi")
+            .navigationTitle("Sarfi")
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button { showPaste = true } label: { Label("Paste a message", systemImage: "doc.on.clipboard") }
@@ -85,7 +85,7 @@ struct SafeToSpendRing: View {
             VStack(spacing: 4) {
                 Text("Safe to spend today").font(.subheadline).foregroundStyle(.secondary)
                 Text(Theme.aed(max(0, safe.today)))
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .font(Theme.bigNumber(size: 44))
                     .contentTransition(.numericText())
                     .minimumScaleFactor(0.6)
                 Text(message).font(.footnote.weight(.medium)).foregroundStyle(Theme.color(for: safe.status))
@@ -107,7 +107,7 @@ struct StatTile: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.background.secondary, in: .rect(cornerRadius: 16))
+        .background(Theme.surface, in: .rect(cornerRadius: 16))
     }
 }
 
@@ -150,6 +150,9 @@ struct PasteMessageView: View {
     @State private var text = ""
     @State private var result: String?
 
+    /// Exactly what Save will log: the same HTML/email cleaning and OTP checks as the Shortcuts action.
+    private var preview: ParsedTransaction? { MessageReader.read(text, sender: nil).parsed }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -164,7 +167,7 @@ struct PasteMessageView: View {
                 } footer: {
                     Text("Paste a bank SMS in Arabic or English.")
                 }
-                if let preview = BankMessageParser().parse(text) {
+                if let preview {
                     Section("We understood") {
                         LabeledContent("Amount", value: "\(preview.currency) \(preview.amount)")
                         LabeledContent("Where", value: preview.merchant ?? "—")
@@ -182,7 +185,7 @@ struct PasteMessageView: View {
                         _ = try? TransactionLogger(context: context).log(message: text, sender: nil)
                         dismiss()
                     }
-                    .disabled(BankMessageParser().parse(text) == nil)
+                    .disabled(preview == nil)
                 }
             }
         }
@@ -201,8 +204,9 @@ struct QuickAddView: View {
     @State private var pickedCategory = false
     @FocusState private var amountFocused: Bool
 
-    /// Reads "45.5", "٤٥٫٥" or "1,250" the same way the Apple Pay action does.
-    private var amount: Decimal? { AmountText.parse(amountText)?.amount }
+    /// Reads "45.5", "٤٥٫٥", "1,250" or "USD 12" the same way the Apple Pay action does.
+    private var parsedAmount: (amount: Decimal, currency: String)? { AmountText.parse(amountText) }
+    private var amount: Decimal? { parsedAmount?.amount }
 
     var body: some View {
         NavigationStack {
@@ -246,8 +250,9 @@ struct QuickAddView: View {
     }
 
     private func save() {
-        guard let amount else { return }
-        _ = try? TransactionLogger(context: context).logManual(amount: amount, merchant: merchant, category: category)
+        guard let parsedAmount else { return }
+        _ = try? TransactionLogger(context: context).logManual(amount: parsedAmount.amount, currency: parsedAmount.currency,
+                                                               merchant: merchant, category: category)
         dismiss()
     }
 }
