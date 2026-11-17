@@ -1,10 +1,12 @@
 import SwiftUI
 import SwiftData
+import WidgetKit
 import MasroofiCore
 
 @main
 struct MasroofiApp: App {
     @AppStorage("didFinishSetup", store: AppSettings.defaults) private var didFinishSetup = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -15,6 +17,15 @@ struct MasroofiApp: App {
             .task { CycleReset.runIfNeeded(context: Store.container.mainContext) }
         }
         .modelContainer(Store.container)
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            // Payday may have passed while the app sat in the background.
+            case .active: CycleReset.runIfNeeded(context: Store.container.mainContext)
+            // Edits made in the app (category, delete, fixed-bill toggle) should reach the widget.
+            case .background: WidgetCenter.shared.reloadAllTimelines()
+            default: break
+            }
+        }
     }
 }
 

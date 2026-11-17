@@ -96,10 +96,27 @@ enum AppSettings {
         set { defaults.set("\(newValue)", forKey: "savings") }
     }
     /// Rough rates for showing foreign purchases in AED. AED is pegged to USD at 3.6725.
+    /// Built from strings: a Decimal from a float literal goes through Double and picks up binary noise.
     static let fxToAED: [String: Decimal] = [
-        "AED": 1, "USD": 3.6725, "EUR": 4.0, "GBP": 4.7, "SAR": 0.979, "QAR": 1.009,
-        "OMR": 9.54, "KWD": 11.95, "BHD": 9.74, "INR": 0.043, "PKR": 0.013, "EGP": 0.075
-    ]
+        "AED": "1", "USD": "3.6725", "EUR": "4.0", "GBP": "4.7", "SAR": "0.979", "QAR": "1.009",
+        "OMR": "9.54", "KWD": "11.95", "BHD": "9.74", "INR": "0.043", "PKR": "0.013", "EGP": "0.075"
+    ].mapValues { Decimal(string: $0, locale: Locale(identifier: "en_US_POSIX"))! }
+}
+
+/// Fixed bills are ticked off when their payment arrives; on payday they start again unticked.
+/// Lives here (compiled into both the app and the widget) because the Shortcut, the widget and the
+/// app can each be the first thing to run after payday.
+enum CycleReset {
+    @MainActor
+    static func runIfNeeded(context: ModelContext, now: Date = .now) {
+        let start = PayCycle.current(payday: AppSettings.payday, today: now).start
+        let key = "lastCycleStart"
+        let last = AppSettings.defaults.object(forKey: key) as? Date
+        guard last != start else { return }
+        (try? context.fetch(FetchDescriptor<Obligation>()))?.forEach { $0.isPaidThisCycle = false }
+        try? context.save()
+        AppSettings.defaults.set(start, forKey: key)
+    }
 }
 
 /// One SwiftData store in the App Group, so the Shortcut, the widget and the app all see the same data.

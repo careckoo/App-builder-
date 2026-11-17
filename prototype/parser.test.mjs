@@ -28,6 +28,33 @@ const cases = [
     { merchant: "GLOBAL VILLAGE", balanceAfter: 900 }, "other"],
   ["Arabic fuel", "عملية شراء بقيمة 120.00 د.إ بالبطاقة رقم 4455 عند أدنوك 512. رصيدك 2,000.00 د.إ", null,
     { amount: 120, kind: "purchase", cardLast4: "4455" }, "fuel"],
+  // Short English keywords must match whole words only.
+  ["Cash deposit ('pos' inside 'deposit')", "Cash deposit of AED 500.00 via CDM at ADCB MUSAFFAH", null,
+    { amount: 500, kind: "income" }, "income"],
+  ["Dental treatment ('atm' inside 'treatment')", "Card ending 1234 was used for AED 350.00 at DENTAL TREATMENT CLINIC on 17/11/2026", null,
+    { amount: 350, kind: "purchase", merchant: "DENTAL TREATMENT CLINIC" }, "health"],
+  ["Merchant starting with a number", "Card ending 1234 was used for AED 12.00 at 7 ELEVEN", null,
+    { amount: 12, kind: "purchase", merchant: "7 ELEVEN" }, "other"],
+  ["'liv' inside a word is not Liv bank", "Card ending 1234 was used for AED 25.00 at DELIVEROO on 17/11/2026. Order delivered.", null,
+    { kind: "purchase", merchant: "DELIVEROO", bank: null }, "delivery"],
+  ["Mobile recharge ('paid' inside 'prepaid' no longer counts)",
+    "Your du prepaid number was recharged with AED 50.00 using card ending 1234 at DU ONLINE on 17/11/2026", null,
+    { amount: 50, kind: "purchase", merchant: "DU ONLINE", cardLast4: "1234" }, "telecom"],
+  ["Card payment at a merchant is a purchase", "Your card payment of AED 30.00 at STARBUCKS was successful", null,
+    { amount: 30, kind: "purchase", merchant: "STARBUCKS" }, "dining"],
+  // Real messages (one UAE bank, Nov 2026), verbatim.
+  ["Real: credit-card bill payment",
+    "Dear Customer, your payment of AED2000.00 on 13/11/2026 for card ending with *197 has been credited. Thank you", null,
+    { amount: 2000, currency: "AED", kind: "cardPayment", merchant: null, cardLast4: "197" }, "transfer"],
+  ["Real: Trx etisalat",
+    "Trx. of AED50.00 on your card ending *822 at etisalat Digital App, UAE is Approved. Avl. card bal is 4852.54. Trx Date: 16/11/26 15:38", null,
+    { amount: 50, currency: "AED", kind: "purchase", merchant: "etisalat Digital App", cardLast4: "822", balanceAfter: 4852.54 }, "telecom"],
+  ["Real: Trx Carrefour",
+    "Trx. of AED10.79 on your card ending *822 at CARREFOUR HYPERMARKET, UAE is Approved. Avl. card bal is 4902.54. Trx Date: 16/11/26 13:12", null,
+    { amount: 10.79, kind: "purchase", merchant: "CARREFOUR HYPERMARKET", cardLast4: "822", balanceAfter: 4902.54 }, "groceries"],
+  ["Real: Trx Cravia",
+    "Trx. of AED34.00 on your card ending *822 at CRAVIA INC LLC, UAE is Approved. Avl. card bal is 4913.33. Trx Date: 16/11/26 13:09", null,
+    { amount: 34, kind: "purchase", merchant: "CRAVIA INC LLC", cardLast4: "822", balanceAfter: 4913.33 }, "other"],
 ];
 
 let pass = 0;

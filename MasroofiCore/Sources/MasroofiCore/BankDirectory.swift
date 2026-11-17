@@ -34,7 +34,10 @@ public enum BankDirectory {
            let b = all.first(where: { $0.senderIDs.contains { s.contains($0.lowercased()) } }) {
             return b.nameEN
         }
-        // Many banks sign the message body ("- ADCB", "Emirates NBD").
-        return all.first { b in b.senderIDs.contains { body.contains($0.lowercased()) } }?.nameEN
+        // Many banks sign the message body ("- ADCB", "Emirates NBD"). Whole words only there:
+        // "liv" inside "delivered" or "DELIVEROO" is not Liv. `body` is already lower-cased.
+        return all.first { b in
+            b.senderIDs.contains { BankMessageParser.containsWord(body, $0.lowercased()) }
+        }?.nameEN
     }
 }

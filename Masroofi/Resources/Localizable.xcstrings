@@ -171,6 +171,16 @@
         }
       }
     },
+    "Card bill payment of %@ %@ logged. It doesn't change today's amount.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم تسجيل سداد البطاقة بمبلغ %1$@ %2$@. ما يغيّر مبلغ اليوم."
+          }
+        }
+      }
+    },
     "Category": {
       "localizations": {
         "ar": {

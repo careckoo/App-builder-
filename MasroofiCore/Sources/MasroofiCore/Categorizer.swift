@@ -130,6 +130,7 @@ public struct Categorizer: Sendable {
         switch parsed.kind {
         case .income, .refund: return .income
         case .withdrawal: return .cash
+        case .cardPayment: return .transfer
         case .transferOut, .purchase: break
         }
         guard let merchant = parsed.merchant?.lowercased() else {

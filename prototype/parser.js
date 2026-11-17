@@ -3,15 +3,16 @@
 // Keep the two in step: when a rule changes in Swift, change it here too.
 
 const IGNORE = ["otp", "one time password", "one-time password", "verification code", "do not share",
-  "activation code", "declined", "insufficient", "failed", "unsuccessful", "offer", "win ",
+  "activation code", "declined", "insufficient", "failed", "unsuccessful", "offer", "offers", "win",
   "رمز التحقق", "كلمة المرور لمرة واحدة", "رمز التفعيل", "لا تشارك", "مرفوضة", "رفض", "غير كاف", "عرض خاص"];
-const REFUND = ["refund", "reversal", "reversed", "cashback", "مسترد", "استرداد", "استرجاع", "عكس"];
+const REFUND = ["refund", "refunded", "reversal", "reversed", "cashback", "مسترد", "استرداد", "استرجاع", "عكس"];
 const WITHDRAWAL = ["atm", "cash withdrawal", "withdrawn", "withdrawal", "سحب نقدي", "سحب", "صراف"];
 const INCOME = ["credited", "has been deposited", "deposit", "received", "salary", "transfer from", "inward",
   "تم إيداع", "تم ايداع", "إيداع", "ايداع", "راتب", "استلام", "تم استلام", "حوالة واردة", "أضيف", "اضيف"];
 const TRANSFER_OUT = ["transferred to", "transfer to", "sent to", "remittance", "outward", "tfr to",
   "تحويل إلى", "تحويل الى", "حوالة صادرة", "تم تحويل"];
-const PURCHASE = ["debited", "used for", "purchase", "spent", "paid", "payment", "pos", "charged", "transaction of",
+const PURCHASE = ["debited", "used for", "purchase", "purchased", "spent", "paid", "payment", "pos", "charged", "transaction of",
+  "trx", "txn", "approved", "recharge", "recharged",
   "تم خصم", "خصم", "شراء", "عملية شراء", "مشتريات", "دفع", "تم استخدام", "تم الدفع"];
 const STRONG_INCOME = ["credited", "deposited", "salary", "تم إيداع", "تم ايداع", "راتب", "حوالة واردة", "إلى حسابك", "to your account"];
 const STRONG_DEBIT = ["debited", "تم خصم", "used for", "purchase", "شراء"];
@@ -25,7 +26,24 @@ const NUM = String.raw`([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]{1,3})?|[0-9]+(?:\.[0-
 const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const CUR = CURRENCIES.map(c => esc(c[0])).join("|");
 
-const has = (s, words) => words.some(w => s.includes(w));
+// A credit-card bill paid from the person's own account: not income, not spending.
+// Never when a merchant is named ("card payment of AED 30 at STARBUCKS" is a purchase).
+const CARD_PAYMENT = [/\bpayment\b.{0,80}?\bfor (?:your )?(?:credit )?card\b/, /\bcredit card (?:bill )?payment\b/,
+  /\bcard (?:bill )?payment\b.{0,60}?\b(?:received|credited)\b/, /\bpayment received for your (?:credit )?card\b/,
+  /سداد (?:ال)?بطاق/, /تم استلام دفعة.{0,80}?بطاق/];
+const isCardPayment = lower => !/\bat\s|لدى|عند/.test(lower) && CARD_PAYMENT.some(re => re.test(lower));
+
+// ASCII keywords match on word edges ("pos" must not hit "deposit", "atm" not "treatment").
+// Arabic keywords stay plain substrings, because Arabic attaches prefixes like و / ب / ال.
+const ASCII = /^[\x00-\x7f]+$/;
+const wordRe = new Map();
+function hasWord(s, w) {
+  if (!ASCII.test(w)) return s.includes(w);
+  let re = wordRe.get(w);
+  if (!re) { re = new RegExp(`(?<![a-z0-9])${esc(w)}(?![a-z0-9])`); wordRe.set(w, re); }
+  return re.test(s);
+}
+const has = (s, words) => words.some(w => hasWord(s, w));
 
 export function normalize(s) {
   let out = "";
@@ -44,6 +62,7 @@ export function normalize(s) {
 function kindFor(lower) {
   if (has(lower, REFUND)) return "refund";
   if (has(lower, WITHDRAWAL)) return "withdrawal";
+  if (isCardPayment(lower)) return "cardPayment";
   if (has(lower, TRANSFER_OUT) && !lower.includes("إلى حسابك") && !lower.includes("to your account")) return "transferOut";
   if (has(lower, STRONG_INCOME) && !has(lower, STRONG_DEBIT)) return "income";
   if (has(lower, PURCHASE)) return "purchase";
@@ -88,7 +107,10 @@ function transactionAmount(text) {
 
 function balance(text) {
   const b = allAmounts(text).filter(a => precededByBalance(a, text));
-  return b.length ? b[b.length - 1].value : null;
+  if (b.length) return b[b.length - 1].value;
+  // "Avl. card bal is 4852.54": a balance with no currency next to it.
+  const f = cap(String.raw`(?:\bbal(?:ance)?|الرصيد|رصيد)\.?\s*(?:is\s*|:\s*)?` + NUM, text);
+  return f ? parseFloat(f.replace(/,/g, "")) : null;
 }
 
 const cap = (pattern, text) => { const m = text.match(new RegExp(pattern, "i")); return m ? m[1] : null; };
@@ -109,14 +131,14 @@ function cleanMerchant(s) {
 }
 
 function merchant(text) {
-  const stops = String.raw`(?=\s+on\s|\s+from\s|\s+has\s|\s+من\s+(?:حساب|بطاق)|\s+بتاريخ|\s+في\s+[0-9]|\s+بقيمة|\s+[0-9]{1,2}[/-]|\.\s|\.$|(?:,\s*|\s+)(?:avl|avail|available|bal\b|balance|الرصيد|رصيد)|$)`;
+  const stops = String.raw`(?=\s+on\s|\s+from\s|\s+has\s|\s+(?:was|is)\s|\s+من\s+(?:حساب|بطاق)|\s+بتاريخ|\s+في\s+[0-9]|\s+بقيمة|\s+[0-9]{1,2}[/-]|\.\s|\.$|(?:,\s*|\s+)(?:avl|avail|available|bal\b|balance|الرصيد|رصيد)|$)`;
   const pats = [String.raw`\bat\s+(.+?)`, String.raw`لدى\s+(.+?)`, String.raw`عند\s+(.+?)`, String.raw`\bto\s+(.+?)`,
     String.raw`إلى\s+(.+?)`, String.raw`\bfrom\s+(.+?)`, String.raw`\bfor\s+([A-Z][A-Za-z0-9 &*'.-]{2,})`];
   for (const p of pats) {
     let name = cap(p + stops, text);
     if (name) {
       name = cleanMerchant(name);
-      if (name.length >= 2 && !/^[0-9.]+$/.test(name) && !isAccountReference(name)) return name;
+      if (name.length >= 2 && !/^[0-9.,]+$/.test(name) && !isAccountReference(name)) return name;
     }
   }
   return null;
@@ -130,17 +152,21 @@ function incomeSource(text) {
   return null;
 }
 
-const cardLast4 = text => cap(String.raw`(?:ending(?:\s+with)?|x{2,}|\*{2,}|no\.?|رقم|المنتهية ب|المنتهي ب)\s*[x*]*\s*([0-9]{4})\b`, text);
+const cardLast4 = text => cap(String.raw`(?:ending(?:\s+with)?|x{2,}|\*+|\bno\.?|رقم|المنتهية ب|المنتهي ب)\s*[x*]*\s*([0-9]{3,4})\b`, text);
 
+// Same list and order as MasroofiCore/BankDirectory.swift.
 const BANKS = [["First Abu Dhabi Bank","بنك أبوظبي الأول",["FAB","FABBANK"]],["ADCB","بنك أبوظبي التجاري",["ADCB","ADCBAlert"]],
   ["ADIB","مصرف أبوظبي الإسلامي",["ADIB"]],["Emirates NBD","الإمارات دبي الوطني",["EmiratesNBD","ENBD"]],["Liv.","ليف",["Liv","LIVBANK"]],
-  ["Dubai Islamic Bank","بنك دبي الإسلامي",["DIB"]],["Mashreq","المشرق",["Mashreq","MashreqNEO"]],["Wio","ويو",["Wio"]],
-  ["Emirates Islamic","الإمارات الإسلامي",["EIB"]],["RAKBANK","بنك رأس الخيمة",["RAKBANK"]],["Tabby","تابي",["tabby"]],["Tamara","تمارا",["Tamara"]]];
+  ["Dubai Islamic Bank","بنك دبي الإسلامي",["DIB"]],["Mashreq","المشرق",["Mashreq","MashreqNEO"]],
+  ["Commercial Bank of Dubai","بنك دبي التجاري",["CBD"]],["RAKBANK","بنك رأس الخيمة",["RAKBANK"]],
+  ["Emirates Islamic","الإمارات الإسلامي",["EIB","EmiratesIsl"]],["Wio","ويو",["Wio"]],["Al Hilal Bank","مصرف الهلال",["AlHilal"]],
+  ["NBF","بنك الفجيرة الوطني",["NBF"]],["HSBC UAE","إتش إس بي سي",["HSBC"]],["Tabby","تابي",["tabby"]],["Tamara","تمارا",["Tamara"]]];
 
 function bankName(sender, lower) {
   const s = (sender || "").toLowerCase();
   const b = (s && BANKS.find(b => b[2].some(id => s.includes(id.toLowerCase()))))
-    || BANKS.find(b => b[2].some(id => lower.includes(id.toLowerCase())));
+    // In the body, whole words only: "liv" inside "delivered" is not Liv.
+    || BANKS.find(b => b[2].some(id => hasWord(lower, id.toLowerCase())));
   return b ? { en: b[0], ar: b[1] } : null;
 }
 
@@ -154,7 +180,7 @@ export function parse(raw, sender) {
   if (!kind) return null;
   return {
     amount: amt[0], currency: amt[1], kind,
-    merchant: kind === "income" ? incomeSource(text) : merchant(text),
+    merchant: kind === "income" ? incomeSource(text) : kind === "cardPayment" ? null : merchant(text),
     cardLast4: cardLast4(text), balanceAfter: balance(text), bank: bankName(sender, lower)
   };
 }
@@ -204,6 +230,7 @@ const RULES = [["talabat","delivery"],["deliveroo","delivery"],["noon food","del
 export function categorize(t) {
   if (t.kind === "income" || t.kind === "refund") return "income";
   if (t.kind === "withdrawal") return "cash";
+  if (t.kind === "cardPayment") return "transfer";
   if (!t.merchant) return t.kind === "transferOut" ? "transfer" : "other";
   const m = t.merchant.toLowerCase() + " ";
   const hit = RULES.find(r => m.includes(r[0]));

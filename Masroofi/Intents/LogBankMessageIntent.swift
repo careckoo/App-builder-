@@ -34,6 +34,8 @@ struct LogBankMessageIntent: AppIntent {
             let where_ = tx.merchant.isEmpty ? "" : " · \(tx.merchant)"
             if tx.isExpense {
                 return .result(dialog: "\(tx.currency) \(amount)\(where_). Left today: AED \(left)")
+            } else if tx.kind == .cardPayment {
+                return .result(dialog: "Card bill payment of \(tx.currency) \(amount) logged. It doesn't change today's amount.")
             } else {
                 return .result(dialog: "+\(tx.currency) \(amount)\(where_)")
             }
@@ -54,7 +56,8 @@ struct SafeToSpendTodayIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog & ReturnsValue<Double> {
         let safe = try SafeToSpendCalculator(context: Store.container.mainContext).current()
-        let value = NSDecimalNumber(decimal: safe.today).doubleValue
+        // Same as the widget and the home screen: never say a negative amount.
+        let value = max(0, NSDecimalNumber(decimal: safe.today).doubleValue)
         return .result(value: value, dialog: "You can spend AED \(Int(value)) today, \(safe.daysLeft) days to payday.")
     }
 }

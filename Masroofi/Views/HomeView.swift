@@ -126,9 +126,9 @@ struct TransactionRow: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text((tx.isExpense ? "−" : "+") + tx.amount.formatted(.number.precision(.fractionLength(2))))
+                Text((tx.isExpense ? "−" : tx.kind == .cardPayment ? "" : "+") + tx.amount.formatted(.number.precision(.fractionLength(2))))
                     .font(.body.weight(.semibold)).monospacedDigit()
-                    .foregroundStyle(tx.isExpense ? Color.primary : Theme.relaxed)
+                    .foregroundStyle(tx.isExpense || tx.kind == .cardPayment ? Color.primary : Theme.relaxed)
                 Text(tx.currency).font(.caption2).foregroundStyle(.secondary)
             }
         }
@@ -148,6 +148,12 @@ struct PasteMessageView: View {
             Form {
                 Section {
                     TextEditor(text: $text).frame(minHeight: 140)
+                    // The system Paste button reads the clipboard only when tapped, so iOS shows no
+                    // "allow paste" prompt and nothing is read without the person asking.
+                    PasteButton(payloadType: String.self) { strings in
+                        guard let first = strings.first else { return }
+                        Task { @MainActor in text = first }
+                    }
                 } footer: {
                     Text("Paste a bank SMS in Arabic or English.")
                 }
@@ -172,7 +178,6 @@ struct PasteMessageView: View {
                     .disabled(BankMessageParser().parse(text) == nil)
                 }
             }
-            .onAppear { if let clip = UIPasteboard.general.string { text = clip } }
         }
     }
 }

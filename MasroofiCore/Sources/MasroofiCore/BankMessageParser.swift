@@ -7,6 +7,7 @@ public enum TransactionKind: String, Codable, Sendable, CaseIterable {
     case transferOut   // money you sent
     case income        // salary, transfer in, deposit
     case refund        // reversal / refund
+    case cardPayment   // credit-card bill paid from your own account: not income, not spending
 }
 
 /// The result of reading one bank SMS. Every field except `amount` and `kind` is optional,
@@ -53,10 +54,11 @@ public struct BankMessageParser: Sendable {
             amount: amount,
             currency: currency,
             kind: kind,
-            merchant: kind == .income ? Self.incomeSource(in: text) : Self.merchant(in: text),
+            merchant: kind == .income ? Self.incomeSource(in: text)
+                    : kind == .cardPayment ? nil : Self.merchant(in: text),
             cardLast4: Self.cardLast4(in: text),
             balanceAfter: Self.balance(in: text),
-            date: Self.date(in: text) ?? receivedAt,
+            date: Self.resolvedDate(in: text, receivedAt: receivedAt),
             bankName: BankDirectory.bankName(sender: sender, body: lower)
         )
     }
@@ -75,7 +77,8 @@ public struct BankMessageParser: Sendable {
                 out.append(Character(String(ch.unicodeScalars.first!.value - 0x06F0)))
             case "٫": out.append(".")
             case "٬", "،": out.append(",")
-            case "\u{00A0}", "\n", "\t", "\r": out.append(" ")
+            // "\r\n" is one Character in Swift, so it needs its own case.
+            case "\u{00A0}", "\n", "\t", "\r", "\r\n": out.append(" ")
             default: out.append(ch)
             }
         }
@@ -87,11 +90,11 @@ public struct BankMessageParser: Sendable {
 
     static let ignoreKeywords = [
         "otp", "one time password", "one-time password", "verification code", "do not share",
-        "activation code", "declined", "insufficient", "failed", "unsuccessful", "offer", "win ",
+        "activation code", "declined", "insufficient", "failed", "unsuccessful", "offer", "offers", "win",
         "رمز التحقق", "كلمة المرور لمرة واحدة", "رمز التفعيل", "لا تشارك", "مرفوضة", "رفض", "غير كاف", "عرض خاص"
     ]
 
-    static let refundKeywords = ["refund", "reversal", "reversed", "cashback", "مسترد", "استرداد", "استرجاع", "عكس"]
+    static let refundKeywords = ["refund", "refunded", "reversal", "reversed", "cashback", "مسترد", "استرداد", "استرجاع", "عكس"]
     static let withdrawalKeywords = ["atm", "cash withdrawal", "withdrawn", "withdrawal", "سحب نقدي", "سحب", "صراف"]
     static let incomeKeywords = [
         "credited", "has been deposited", "deposit", "received", "salary", "transfer from", "inward",
@@ -102,13 +105,36 @@ public struct BankMessageParser: Sendable {
         "تحويل إلى", "تحويل الى", "حوالة صادرة", "تم تحويل"
     ]
     static let purchaseKeywords = [
-        "debited", "used for", "purchase", "spent", "paid", "payment", "pos", "charged", "transaction of",
+        "debited", "used for", "purchase", "purchased", "spent", "paid", "payment", "pos", "charged", "transaction of",
+        "trx", "txn", "approved", "recharge", "recharged",
         "تم خصم", "خصم", "شراء", "عملية شراء", "مشتريات", "دفع", "تم استخدام", "تم الدفع"
     ]
+
+    /// "your payment of AED2000.00 ... for card ending with *197 has been credited": the person paid
+    /// their own credit-card bill. Counting it as income (or as spending) would distort safe-to-spend.
+    static let cardPaymentPatterns = [
+        #"\bpayment\b.{0,80}?\bfor (?:your )?(?:credit )?card\b"#,
+        #"\bcredit card (?:bill )?payment\b"#,
+        #"\bcard (?:bill )?payment\b.{0,60}?\b(?:received|credited)\b"#,
+        #"\bpayment received for your (?:credit )?card\b"#,
+        #"سداد (?:ال)?بطاق"#,
+        #"تم استلام دفعة.{0,80}?بطاق"#
+    ]
+
+    static func isCardPayment(_ lower: String) -> Bool {
+        // Never when a merchant is named ("card payment of AED 30 at STARBUCKS" is a purchase).
+        if matches(#"\bat\s|لدى|عند"#, lower) { return false }
+        return cardPaymentPatterns.contains { matches($0, lower) }
+    }
+
+    static func matches(_ pattern: String, _ s: String) -> Bool {
+        s.range(of: pattern, options: .regularExpression) != nil
+    }
 
     static func kind(for lower: String) -> TransactionKind? {
         if containsAny(lower, refundKeywords) { return .refund }
         if containsAny(lower, withdrawalKeywords) { return .withdrawal }
+        if isCardPayment(lower) { return .cardPayment }
         // "transfer to" must win over "debited" ("AED 500 debited ... transferred to Ahmed").
         if containsAny(lower, transferOutKeywords) && !lower.contains("إلى حسابك") && !lower.contains("to your account") {
             return .transferOut
@@ -201,7 +227,10 @@ public struct BankMessageParser: Sendable {
     }
 
     static func balance(in text: String) -> Decimal? {
-        allAmounts(in: text).last(where: { isPrecededByBalanceMarker($0, in: text) })?.value
+        if let b = allAmounts(in: text).last(where: { isPrecededByBalanceMarker($0, in: text) }) { return b.value }
+        // "Avl. card bal is 4852.54": a balance with no currency next to it.
+        guard let s = firstCapture(#"(?:\bbal(?:ance)?|الرصيد|رصيد)\.?\s*(?:is\s*|:\s*)?"# + number, in: text) else { return nil }
+        return Decimal(string: s.replacingOccurrences(of: ",", with: ""), locale: Locale(identifier: "en_US_POSIX"))
     }
 
     // MARK: - Merchant, card, date
@@ -214,7 +243,7 @@ public struct BankMessageParser: Sendable {
     }
 
     static func merchant(in text: String) -> String? {
-        let stops = #"(?=\s+on\s|\s+from\s|\s+has\s|\s+من\s+(?:حساب|بطاق)|\s+بتاريخ|\s+في\s+[0-9]|\s+بقيمة|\s+[0-9]{1,2}[/-]|\.\s|\.$|(?:,\s*|\s+)(?:avl|avail|available|bal\b|balance|الرصيد|رصيد)|$)"#
+        let stops = #"(?=\s+on\s|\s+from\s|\s+has\s|\s+(?:was|is)\s|\s+من\s+(?:حساب|بطاق)|\s+بتاريخ|\s+في\s+[0-9]|\s+بقيمة|\s+[0-9]{1,2}[/-]|\.\s|\.$|(?:,\s*|\s+)(?:avl|avail|available|bal\b|balance|الرصيد|رصيد)|$)"#
         let patterns = [
             #"\bat\s+(.+?)"# + stops,
             #"لدى\s+(.+?)"# + stops,
@@ -227,7 +256,8 @@ public struct BankMessageParser: Sendable {
         for p in patterns {
             if var name = firstCapture(p, in: text) {
                 name = cleanMerchant(name)
-                if name.count >= 2, !name.allSatisfy(\.isNumber), Decimal(string: name) == nil,
+                // Reject bare numbers only. `Decimal(string:)` would also reject "7 ELEVEN", because it reads the leading 7.
+                if name.count >= 2, !matches(#"^[0-9.,]+$"#, name),
                    !Self.isAccountReference(name) { return name }
             }
         }
@@ -261,28 +291,67 @@ public struct BankMessageParser: Sendable {
     }
 
     static func cardLast4(in text: String) -> String? {
-        firstCapture(#"(?:ending(?:\s+with)?|x{2,}|\*{2,}|no\.?|رقم|المنتهية ب|المنتهي ب)\s*[x*]*\s*([0-9]{4})\b"#, in: text)
+        // Some banks show only the last 3 digits ("card ending *822").
+        firstCapture(#"(?:ending(?:\s+with)?|x{2,}|\*+|\bno\.?|رقم|المنتهية ب|المنتهي ب)\s*[x*]*\s*([0-9]{3,4})\b"#, in: text)
     }
 
-    static func date(in text: String) -> Date? {
+    /// A date written in the message, and whether it also had a time ("16/11/26 15:38").
+    static func date(in text: String) -> (date: Date, hasTime: Bool)? {
         let posix = Locale(identifier: "en_US_POSIX")
-        let candidates: [(String, String)] = [
-            (#"\b([0-9]{1,2}/[0-9]{1,2}/[0-9]{4})\b"#, "d/M/yyyy"),
-            (#"\b([0-9]{1,2}-[0-9]{1,2}-[0-9]{4})\b"#, "d-M-yyyy"),
-            (#"\b([0-9]{1,2}/[0-9]{1,2}/[0-9]{2})\b"#, "d/M/yy"),
-            (#"\b([0-9]{1,2}-[A-Za-z]{3}-[0-9]{2,4})\b"#, "d-MMM-yy"),
-            (#"\b([0-9]{4}-[0-9]{2}-[0-9]{2})\b"#, "yyyy-MM-dd")
+        let time = #"\s+[0-9]{1,2}:[0-9]{2}"#
+        let candidates: [(String, String, Bool)] = [
+            (#"\b([0-9]{1,2}/[0-9]{1,2}/[0-9]{4}"# + time + #")\b"#, "d/M/yyyy H:mm", true),
+            (#"\b([0-9]{1,2}-[0-9]{1,2}-[0-9]{4}"# + time + #")\b"#, "d-M-yyyy H:mm", true),
+            (#"\b([0-9]{1,2}/[0-9]{1,2}/[0-9]{2}"# + time + #")\b"#, "d/M/yy H:mm", true),
+            (#"\b([0-9]{1,2}/[0-9]{1,2}/[0-9]{4})\b"#, "d/M/yyyy", false),
+            (#"\b([0-9]{1,2}-[0-9]{1,2}-[0-9]{4})\b"#, "d-M-yyyy", false),
+            (#"\b([0-9]{1,2}/[0-9]{1,2}/[0-9]{2})\b"#, "d/M/yy", false),
+            (#"\b([0-9]{1,2}-[A-Za-z]{3}-[0-9]{2,4})\b"#, "d-MMM-yy", false),
+            (#"\b([0-9]{4}-[0-9]{2}-[0-9]{2})\b"#, "yyyy-MM-dd", false)
         ]
-        for (pattern, format) in candidates {
-            guard let s = firstCapture(pattern, in: text) else { continue }
+        for (pattern, format, hasTime) in candidates {
+            guard let raw = firstCapture(pattern, in: text) else { continue }
+            let s = raw.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
             let f = DateFormatter()
             f.locale = posix
             f.timeZone = TimeZone(identifier: "Asia/Dubai")
             f.dateFormat = (format == "d-MMM-yy" && s.count > 9) ? "d-MMM-yyyy" : format
-            if let d = f.date(from: s) { return d }
+            if let d = f.date(from: s) { return (d, hasTime) }
         }
         return nil
     }
 
-    static func containsAny(_ s: String, _ words: [String]) -> Bool { words.contains { s.contains($0) } }
+    /// When the transaction happened.
+    /// - The message has a date and a time: use them.
+    /// - Only a date, and it is the day the message arrived (or later): use the arrival time, so the
+    ///   purchase doesn't show at 00:00 and the duplicate check sees the real moment.
+    /// - Only a date, earlier than arrival (an old message pasted later): keep the message's own day.
+    static func resolvedDate(in text: String, receivedAt: Date, calendar: Calendar = .dubai) -> Date {
+        guard let found = date(in: text) else { return receivedAt }
+        if found.hasTime { return found.date }
+        if calendar.startOfDay(for: found.date) >= calendar.startOfDay(for: receivedAt) { return receivedAt }
+        return found.date
+    }
+
+    /// English keywords match on word edges, so "pos" doesn't hit "deposit", "atm" doesn't hit
+    /// "treatment" and "paid" doesn't hit "prepaid". Same as `(?<![a-z0-9])word(?![a-z0-9])` in parser.js.
+    /// Arabic keywords stay plain substrings, because Arabic attaches prefixes such as و / ب / ال.
+    static func containsWord(_ s: String, _ word: String) -> Bool {
+        guard word.unicodeScalars.allSatisfy(\.isASCII) else { return s.contains(word) }
+        var from = s.startIndex
+        while from < s.endIndex, let r = s.range(of: word, range: from..<s.endIndex) {
+            let startOK = r.lowerBound == s.startIndex || !isASCIIAlphanumeric(s[s.index(before: r.lowerBound)])
+            let endOK = r.upperBound == s.endIndex || !isASCIIAlphanumeric(s[r.upperBound])
+            if startOK && endOK { return true }
+            from = s.index(after: r.lowerBound)
+        }
+        return false
+    }
+
+    static func isASCIIAlphanumeric(_ c: Character) -> Bool {
+        guard let a = c.asciiValue else { return false }
+        return (a >= 48 && a <= 57) || (a >= 97 && a <= 122) || (a >= 65 && a <= 90)
+    }
+
+    static func containsAny(_ s: String, _ words: [String]) -> Bool { words.contains { containsWord(s, $0) } }
 }

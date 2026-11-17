@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WidgetKit
 import MasroofiCore
 
 /// Every transaction, grouped by day, with search. Tap one to change its category.
@@ -18,7 +19,7 @@ struct ActivityView: View {
 
     private var days: [(Date, [Transaction])] {
         let groups = Dictionary(grouping: filtered) { Calendar.dubai.startOfDay(for: $0.date) }
-        return groups.sorted { $0.key > $1.key }
+        return groups.map { ($0.key, $0.value) }.sorted { $0.0 > $1.0 }
     }
 
     var body: some View {
@@ -55,6 +56,7 @@ struct TransactionDetailView: View {
     @Bindable var tx: Transaction
     @Environment(\.modelContext) private var context
     @Environment(\.locale) private var locale
+    @Environment(\.dismiss) private var dismiss
     @State private var rememberChoice = true
 
     var body: some View {
@@ -84,17 +86,39 @@ struct TransactionDetailView: View {
                 } header: { Text("Original message") } footer: { Text("Stored only on this iPhone.") }
             }
             Section {
-                Button("Delete transaction", role: .destructive) { context.delete(tx) }
+                Button("Delete transaction", role: .destructive) { delete() }
             }
         }
         .navigationTitle(tx.merchant.isEmpty ? String(localized: "Transaction") : tx.merchant)
         .navigationBarTitleDisplayMode(.inline)
     }
 
+    /// Leave the screen first, then delete: this view must not render a deleted model.
+    private func delete() {
+        let doomed = tx
+        let context = context
+        dismiss()
+        Task { @MainActor in
+            // Let the pop animation finish before the object disappears from the store.
+            try? await Task.sleep(for: .milliseconds(400))
+            context.delete(doomed)
+            try? context.save()
+            WidgetCenter.shared.reloadAllTimelines()
+        }
+    }
+
     private func setCategory(_ c: CategoryID) {
         tx.category = c
         guard rememberChoice, !tx.merchant.isEmpty else { return }
-        context.insert(MerchantRule(keyword: tx.merchant, category: c))
+        // One rule per merchant: update it if it exists, otherwise add it.
+        let keyword = tx.merchant.lowercased()
+        let existing = try? context.fetch(FetchDescriptor<MerchantRule>(predicate: #Predicate { $0.keyword == keyword }))
+        if let rule = existing?.first {
+            rule.categoryRaw = c.rawValue
+            existing?.dropFirst().forEach { context.delete($0) }   // clean up duplicates from older versions
+        } else {
+            context.insert(MerchantRule(keyword: tx.merchant, category: c))
+        }
         // Apply the same choice to earlier purchases at this merchant.
         let name = tx.merchant
         if let same = try? context.fetch(FetchDescriptor<Transaction>(predicate: #Predicate { $0.merchant == name })) {

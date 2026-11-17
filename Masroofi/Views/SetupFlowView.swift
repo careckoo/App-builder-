@@ -91,9 +91,11 @@ struct ShortcutGuideView: View {
     let banks: [Bank]
     var onDone: () -> Void
     @Query(sort: \Transaction.date, order: .reverse) private var transactions: [Transaction]
-    @State private var startedAt = Date.now
+    /// How many transactions existed when this screen opened. Comparing dates doesn't work: a pasted
+    /// old SMS keeps its own (earlier) date, and a new one may carry the bank's timestamp.
+    @State private var countAtStart: Int?
 
-    private var receivedTest: Bool { transactions.contains { $0.date >= startedAt.addingTimeInterval(-5) } }
+    private var receivedTest: Bool { countAtStart.map { transactions.count > $0 } ?? false }
 
     var body: some View {
         List {
@@ -128,6 +130,7 @@ struct ShortcutGuideView: View {
             Button(receivedTest ? "Done" : "I'll finish this later") { onDone() }
                 .frame(maxWidth: .infinity)
         }
+        .onAppear { if countAtStart == nil { countAtStart = transactions.count } }
     }
 
     private func step(_ n: Int, _ text: LocalizedStringKey) -> some View {
@@ -186,18 +189,5 @@ enum CSVExport {
                 .joined(separator: ",")
         }
         return (["date,type,merchant,category,amount,currency,amount_aed,card,bank,note"] + rows).joined(separator: "\n")
-    }
-}
-
-/// Fixed bills are ticked off when their payment arrives; on payday they start again unticked.
-enum CycleReset {
-    @MainActor
-    static func runIfNeeded(context: ModelContext) {
-        let start = PayCycle.current(payday: AppSettings.payday).start
-        let key = "lastCycleStart"
-        let last = AppSettings.defaults.object(forKey: key) as? Date
-        guard last != start else { return }
-        (try? context.fetch(FetchDescriptor<Obligation>()))?.forEach { $0.isPaidThisCycle = false }
-        AppSettings.defaults.set(start, forKey: key)
     }
 }

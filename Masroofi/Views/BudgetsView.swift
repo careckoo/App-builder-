@@ -19,7 +19,7 @@ struct BudgetsView: View {
         let inCycle = transactions.filter { $0.isExpense && $0.date >= cycle.start }
         let grouped = Dictionary(grouping: inCycle, by: \.category)
             .mapValues { $0.reduce(Decimal(0)) { $0 + $1.amountAED } }
-        return grouped.sorted { $0.value > $1.value }
+        return grouped.map { ($0.key, $0.value) }.sorted { $0.1 > $1.1 }
     }
 
     private func name(_ c: CategoryID) -> String { locale.language.languageCode == "ar" ? c.nameAR : c.nameEN }
