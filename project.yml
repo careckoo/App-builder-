@@ -1,18 +1,18 @@
 # Generate the Xcode project on a Mac with:  brew install xcodegen && xcodegen
-# Then open Sarfi.xcodeproj and run on an iPhone (iOS 17+).
+# Then open Khurda.xcodeproj and run on an iPhone (iOS 17+).
 # Bundle ID and signing team are set once, below, under settings.base (APP_BUNDLE_ID, DEVELOPMENT_TEAM).
-name: Sarfi
+name: Khurda
 options:
   deploymentTarget:
     iOS: "17.0"
   developmentLanguage: en
 packages:
-  SarfiCore:
-    path: SarfiCore
+  KhurdaCore:
+    path: KhurdaCore
 settings:
   base:
     # The one place to change identifiers. The widget's ID must start with the app's ID.
-    APP_BUNDLE_ID: ae.sarfi.app
+    APP_BUNDLE_ID: ae.khurda.app
     # Your 10-character Apple Team ID (developer.apple.com > Membership). Empty = pick it in Xcode > Signing.
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
@@ -23,54 +23,54 @@ settings:
     LOCALIZATION_PREFERS_STRING_CATALOGS: YES
     SWIFT_EMIT_LOC_STRINGS: YES
 targets:
-  Sarfi:
+  Khurda:
     type: application
     platform: iOS
     sources:
-      - Sarfi
+      - Khurda
     dependencies:
-      - package: SarfiCore
-      - target: SarfiWidget
+      - package: KhurdaCore
+      - target: KhurdaWidget
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
     entitlements:
-      path: Sarfi/Resources/Sarfi.entitlements
+      path: Khurda/Resources/Khurda.entitlements
       properties:
-        com.apple.security.application-groups: [group.ae.sarfi.shared]
+        com.apple.security.application-groups: [group.ae.khurda.shared]
     info:
-      path: Sarfi/Resources/Info.plist
+      path: Khurda/Resources/Info.plist
       properties:
-        # English name; the Arabic «صرفي» comes from Sarfi/Resources/InfoPlist.xcstrings.
-        CFBundleDisplayName: Sarfi
+        # English name; the Arabic «خردة» comes from Khurda/Resources/InfoPlist.xcstrings.
+        CFBundleDisplayName: Khurda
         CFBundleLocalizations: [en, ar]
         UILaunchScreen: {}
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
-  SarfiWidget:
+  KhurdaWidget:
     type: app-extension
     platform: iOS
     sources:
-      - SarfiWidget
-      - Sarfi/Models/Models.swift
-      - Sarfi/Intents/TransactionLogger.swift
-      - Sarfi/App/Theme.swift
-      - Sarfi/Resources/Localizable.xcstrings
+      - KhurdaWidget
+      - Khurda/Models/Models.swift
+      - Khurda/Intents/TransactionLogger.swift
+      - Khurda/App/Theme.swift
+      - Khurda/Resources/Localizable.xcstrings
     dependencies:
-      - package: SarfiCore
+      - package: KhurdaCore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).widget
     entitlements:
-      path: SarfiWidget/SarfiWidget.entitlements
+      path: KhurdaWidget/KhurdaWidget.entitlements
       properties:
-        com.apple.security.application-groups: [group.ae.sarfi.shared]
+        com.apple.security.application-groups: [group.ae.khurda.shared]
     info:
-      path: SarfiWidget/Info.plist
+      path: KhurdaWidget/Info.plist
       properties:
-        # Arabic name from SarfiWidget/InfoPlist.xcstrings.
-        CFBundleDisplayName: Sarfi
+        # Arabic name from KhurdaWidget/InfoPlist.xcstrings.
+        CFBundleDisplayName: Khurda
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension

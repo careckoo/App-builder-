@@ -1,10 +1,10 @@
 import AppIntents
 import SwiftData
-import SarfiCore
+import KhurdaCore
 
 /// The action people add to their Shortcuts automation, for SMS or email:
 ///   Automation → Message → Sender is "ADCB" (or FAB, EmiratesNBD…) → Run Immediately
-///   → Sarfi "Log bank message or email" with the message content.
+///   → Khurda "Log bank message or email" with the message content.
 ///   Automation → Email → Sender is the bank's alert address → Run Immediately → same action with the email body.
 ///
 /// iOS does not let any app read SMS, email or other apps' notifications directly. These automations
@@ -13,7 +13,7 @@ import SarfiCore
 /// The type name stays `LogBankMessageIntent` so automations people already made keep working.
 struct LogBankMessageIntent: AppIntent {
     static let title: LocalizedStringResource = "Log bank message or email"
-    static let description = IntentDescription("Reads a bank SMS or alert email and adds the transaction to Sarfi.",
+    static let description = IntentDescription("Reads a bank SMS or alert email and adds the transaction to Khurda.",
                                                categoryName: "Tracking")
     static let openAppWhenRun = false
 
@@ -41,12 +41,12 @@ struct LogBankMessageIntent: AppIntent {
 }
 
 /// Logs an Apple Pay purchase. Set up once:
-///   Automation → Transaction → choose cards → Run Immediately → Sarfi "Log Apple Pay purchase"
+///   Automation → Transaction → choose cards → Run Immediately → Khurda "Log Apple Pay purchase"
 ///   with Amount, Merchant and Card or Pass from the Shortcut Input.
 /// This works for any bank's card in Wallet, including banks that only send in-app notifications.
 struct LogWalletTransactionIntent: AppIntent {
     static let title: LocalizedStringResource = "Log Apple Pay purchase"
-    static let description = IntentDescription("Adds an Apple Pay purchase from the Wallet Transaction automation to Sarfi.",
+    static let description = IntentDescription("Adds an Apple Pay purchase from the Wallet Transaction automation to Khurda.",
                                                categoryName: "Tracking")
     static let openAppWhenRun = false
 
@@ -118,7 +118,7 @@ struct SafeToSpendTodayIntent: AppIntent {
 }
 
 /// Makes the actions appear in the Shortcuts app straight after install, in English and Arabic.
-struct SarfiShortcuts: AppShortcutsProvider {
+struct KhurdaShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: LogWalletTransactionIntent(),
                     phrases: ["Log Apple Pay purchase in \(.applicationName)"],

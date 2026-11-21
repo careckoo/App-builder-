@@ -1,5 +1,5 @@
 import XCTest
-@testable import SarfiCore
+@testable import KhurdaCore
 
 /// Apple Pay amounts, bank alert emails, and the same purchase reported by two sources.
 final class TransactionSourcesTests: XCTestCase {

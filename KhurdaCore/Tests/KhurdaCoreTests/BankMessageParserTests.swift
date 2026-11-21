@@ -1,5 +1,5 @@
 import XCTest
-@testable import SarfiCore
+@testable import KhurdaCore
 
 /// The sample messages follow the shape of real UAE bank alerts, with fake numbers.
 /// Add anonymised real messages here whenever a bank changes its wording.

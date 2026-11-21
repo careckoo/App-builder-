@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 import Charts
-import SarfiCore
+import KhurdaCore
 
 /// The "Plan" tab: where the money went this pay cycle, category budgets, and fixed bills.
 struct BudgetsView: View {

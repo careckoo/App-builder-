@@ -1,4 +1,4 @@
-// JavaScript copy of SarfiCore/BankMessageParser.swift + Categorizer.swift.
+// JavaScript copy of KhurdaCore/BankMessageParser.swift + Categorizer.swift.
 // Used by the clickable prototype and by parser.test.mjs to check the rules without a Mac.
 // Keep the two in step: when a rule changes in Swift, change it here too.
 
@@ -181,7 +181,7 @@ function incomeSource(text) {
 
 const cardLast4 = text => cap(String.raw`(?:ending(?:\s+with)?|x{2,}|\*+|\bno\.?|رقم|المنتهية ب|المنتهي ب)\s*[x*]*\s*([0-9]{3,4})\b`, text);
 
-// Same list and order as SarfiCore/BankDirectory.swift.
+// Same list and order as KhurdaCore/BankDirectory.swift.
 const BANKS = [["First Abu Dhabi Bank","بنك أبوظبي الأول",["FAB","FABBANK"]],["ADCB","بنك أبوظبي التجاري",["ADCB","ADCBAlert"]],
   ["ADIB","مصرف أبوظبي الإسلامي",["ADIB"]],["Emirates NBD","الإمارات دبي الوطني",["EmiratesNBD","ENBD"]],["Liv.","ليف",["Liv","LIVBANK"]],
   ["Dubai Islamic Bank","بنك دبي الإسلامي",["DIB"]],["Mashreq","المشرق",["Mashreq","MashreqNEO"]],
@@ -277,7 +277,7 @@ export function categorize(t, learned = {}) {
   return hit ? hit[1] : (t.kind === "transferOut" ? "transfer" : "other");
 }
 
-// ---- Email text (mirrors MessageText in SarfiCore/TransactionSources.swift) -------------
+// ---- Email text (mirrors MessageText in KhurdaCore/TransactionSources.swift) -------------
 
 const DIRECTION_MARKS = /[‎‏؜‪-‮⁦-⁩​-‍﻿]/g;
 const NAMED_ENTITIES = { nbsp: " ", lt: "<", gt: ">", quot: "\"", apos: "'", ndash: "–", mdash: "—",

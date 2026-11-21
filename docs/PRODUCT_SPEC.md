@@ -1,21 +1,21 @@
-# Sarfi v1 Product Spec · مواصفات المنتج
+# Khurda v1 Product Spec · مواصفات المنتج
 
-Status: draft for the Lead and the user · 2026-11-17 · App name **Sarfi** / «صرفي» (Arabic name first in Arabic UI).
+Status: draft for the Lead and the user · 2026-11-17 · App name **Khurda** / «خردة» (Arabic name first in Arabic UI).
 Body in English; Arabic UI copy is Gulf Arabic, in quotes. Amounts show as `AED 120` and stay left-to-right in both languages.
 
 ---
 
 ## 1. Principle · المبدأ
 
-**One honest number a day, kept up to date for you.** Sarfi tells you how much you can spend today and still reach payday comfortably, and keeps that number right without you typing. Everything else (lists, charts, plans) exists to make that number trustworthy. If a feature makes the home screen busier or asks the user to do work the phone could do, it doesn't ship.
+**One honest number a day, kept up to date for you.** Khurda tells you how much you can spend today and still reach payday comfortably, and keeps that number right without you typing. Everything else (lists, charts, plans) exists to make that number trustworthy. If a feature makes the home screen busier or asks the user to do work the phone could do, it doesn't ship.
 
 What makes us better than OutCap:
 
-| | OutCap (seen) | Sarfi |
+| | OutCap (seen) | Khurda |
 |---|---|---|
 | Automatic sources | Bank SMS only ("waiting for a message") | **Three**: Apple Pay (Wallet "Transaction" automation), bank SMS, bank alert email, merged so one purchase shows once. Keeps working as UAE banks move alerts into their apps. |
 | Setup | Manual salary, payday, obligations | Salary amount and payday **detected from the first salary message**; bills, subscriptions and own accounts **suggested** from what the bank already tells us |
-| Unreadable message | "Teach us" (sends to them) | **Teach Sarfi on the phone**: tap the amount and merchant once, a local template is saved. Nothing leaves the device. |
+| Unreadable message | "Teach us" (sends to them) | **Teach Khurda on the phone**: tap the amount and merchant once, a local template is saved. Nothing leaves the device. |
 | UAE fit | Saudi-first | UAE banks and sender IDs, UAE merchants and billers (DEWA, TAQA/ADDC, SEWA, Salik, Etisalat/e&, du, Tabby, Tamara), Sat–Sun weekend salary shift, Hijri seasons, school-fee months |
 | Free tier | Widget and carry-over are Pro | Automation, the daily number, widget, Siri, bills and alerts that protect money are **always free** |
 | Privacy | On-device | On-device, no server, no analytics SDK, optional Face ID lock, one tap to delete stored message text |
@@ -69,7 +69,7 @@ Not on Today, on purpose: obligations total, link status tiles, history (OutCap'
 | A4 | Categories view | Segmented "القائمة / الفئات": per-cycle breakdown with bars [categories tab] | | Free | 1.0 |
 | A5 | Edit categories | Rename, icon, add custom; merge two categories in 1.1 [edit categories] | | Free | 1.0 |
 | A6 | Unread messages | A "ما قدرنا نقراها" section for bank messages that came in but didn't parse, never silently dropped | Yes | Free | 1.0 |
-| A7 | Teach Sarfi | On an unread message the user taps the amount, then the merchant, in the message text. A local template is saved for that sender and used before the generic parser next time. No server ["teach us"] | Learns per sender | Free | 1.1 |
+| A7 | Teach Khurda | On an unread message the user taps the amount, then the merchant, in the message text. A local template is saved for that sender and used before the generic parser next time. No server ["teach us"] | Learns per sender | Free | 1.1 |
 | A8 | Refund matching | A credit from the same merchant within 30 days offsets the purchase and gives today's amount back | Yes | Free | 1.1 |
 | A9 | CSV export | Cycle or all time, share sheet | | Free | 1.0 |
 
@@ -138,7 +138,7 @@ Automation features are never paywalled: a user who can't teach a message stops 
 | Detect payday + salary from first salary message | Keep, suggest-only | P3, 1.0 |
 | Detect recurring bills/subscriptions | Keep; known list 1.0, pattern 1.1 (needs two months of data anyway) | P7 |
 | Detect own accounts/cards from endings | Keep, ask once per ending | P9, 1.0 |
-| Teach Sarfi (local template) | Keep; inbox 1.0, tap-to-teach 1.1 (needs careful matching and tests in Swift and JS) | A6, A7 |
+| Teach Khurda (local template) | Keep; inbox 1.0, tap-to-teach 1.1 (needs careful matching and tests in Swift and JS) | A6, A7 |
 | Duplicate-charge alert | Keep, free (protects money) | I6, 1.0 |
 | Unusual-spend alert | Keep, needs history | I7, 1.1 |
 | "Will my salary last?" | Keep, Pro headline feature | I4, 1.0 |
@@ -158,7 +158,7 @@ Automation features are never paywalled: a user who can't teach a message stops 
 
 **Rule:** free = everything automatic, the daily number, and anything that protects money. Pro = the smart layer and "more of" things.
 
-| Free (forever) | Pro "صرفي برو" |
+| Free (forever) | Pro "خردة برو" |
 |---|---|
 | All three automatic sources, merge, manual add, paste | Will my salary last? (I4) |
 | Today's number, ring, widget, Siri | Money-leak finder, full list (I5) |

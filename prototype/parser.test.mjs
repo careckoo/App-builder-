@@ -1,5 +1,5 @@
 // Run with: node prototype/parser.test.mjs
-// Same cases as SarfiCore/Tests/SarfiCoreTests/BankMessageParserTests.swift.
+// Same cases as KhurdaCore/Tests/KhurdaCoreTests/BankMessageParserTests.swift.
 import assert from "node:assert/strict";
 import { parse, categorize, stripHtml, emailBody, isIgnorable, readMessage } from "./parser.js";
 

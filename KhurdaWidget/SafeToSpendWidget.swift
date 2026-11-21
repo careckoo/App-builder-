@@ -1,7 +1,7 @@
 import WidgetKit
 import SwiftUI
 import SwiftData
-import SarfiCore
+import KhurdaCore
 
 /// Home Screen and Lock Screen widget: today's safe-to-spend number.
 /// Reloaded by `TransactionLogger` every time a bank message is logged.
@@ -60,7 +60,7 @@ struct SafeToSpendWidgetView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         } else {
-            Text("Open Sarfi to finish setup").font(.caption)
+            Text("Open Khurda to finish setup").font(.caption)
         }
     }
 }

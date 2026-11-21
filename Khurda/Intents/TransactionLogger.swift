@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 import WidgetKit
-import SarfiCore
+import KhurdaCore
 
 /// Turns a bank SMS or email, an Apple Pay purchase, or a manual entry into a saved transaction.
 /// Used by the Shortcuts actions (App Intents), by "Paste a message" and by quick-add in the app.

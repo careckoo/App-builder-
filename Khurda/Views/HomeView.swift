@@ -1,6 +1,6 @@
 import SwiftUI
 import SwiftData
-import SarfiCore
+import KhurdaCore
 
 /// The first screen: one number, a ring, and today's spending. Everything else is one tap away.
 struct HomeView: View {
@@ -43,7 +43,7 @@ struct HomeView: View {
                 .padding()
             }
             .background(Theme.background)
-            .navigationTitle("Sarfi")
+            .navigationTitle("Khurda")
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button { showPaste = true } label: { Label("Paste a message", systemImage: "doc.on.clipboard") }

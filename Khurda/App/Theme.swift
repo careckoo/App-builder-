@@ -1,6 +1,6 @@
 import SwiftUI
 import UIKit
-import SarfiCore
+import KhurdaCore
 
 /// Colours and helpers used across screens. Arabic and right-to-left layout come from the
 /// system language; amounts use Western digits, as UAE bank messages do.

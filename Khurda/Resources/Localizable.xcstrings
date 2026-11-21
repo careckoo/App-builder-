@@ -145,12 +145,12 @@
         }
       }
     },
-    "Adds an Apple Pay purchase from the Wallet Transaction automation to Sarfi.": {
+    "Adds an Apple Pay purchase from the Wallet Transaction automation to Khurda.": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "يضيف الشراء بـ Apple Pay من أتمتة «المعاملة» في المحفظة إلى صرفي."
+            "value": "يضيف الشراء بـ Apple Pay من أتمتة «المعاملة» في المحفظة إلى خردة."
           }
         }
       }
@@ -815,12 +815,12 @@
         }
       }
     },
-    "Open Sarfi to finish setup": {
+    "Open Khurda to finish setup": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "افتح صرفي لإكمال الإعداد"
+            "value": "افتح خردة لإكمال الإعداد"
           }
         }
       }
@@ -905,12 +905,12 @@
         }
       }
     },
-    "Reads a bank SMS or alert email and adds the transaction to Sarfi.": {
+    "Reads a bank SMS or alert email and adds the transaction to Khurda.": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "يقرأ رسالة البنك أو إيميل التنبيه ويضيف العملية إلى صرفي."
+            "value": "يقرأ رسالة البنك أو إيميل التنبيه ويضيف العملية إلى خردة."
           }
         }
       }
@@ -955,22 +955,22 @@
         }
       }
     },
-    "Sarfi": {
+    "Khurda": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "صرفي"
+            "value": "خردة"
           }
         }
       }
     },
-    "Sarfi reads those messages and keeps your budget for you. No typing numbers, no bank passwords, and nothing leaves your iPhone.": {
+    "Khurda reads those messages and keeps your budget for you. No typing numbers, no bank passwords, and nothing leaves your iPhone.": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "صرفي يقرأ هذه الرسائل ويرتّب ميزانيتك عنك. بدون إدخال أرقام، بدون كلمات مرور البنك، وكل شيء يبقى على جوالك."
+            "value": "خردة يقرأ هذه الرسائل ويرتّب ميزانيتك عنك. بدون إدخال أرقام، بدون كلمات مرور البنك، وكل شيء يبقى على جوالك."
           }
         }
       }
@@ -995,32 +995,32 @@
         }
       }
     },
-    "Search for Sarfi and choose “Log Apple Pay purchase”.": {
+    "Search for Khurda and choose “Log Apple Pay purchase”.": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "ابحث عن «صرفي» واختر «تسجيل شراء Apple Pay»."
+            "value": "ابحث عن «خردة» واختر «تسجيل شراء Apple Pay»."
           }
         }
       }
     },
-    "Search for Sarfi, choose “Log bank message or email”, then set Message to the email's body, and Sender and Subject to the email's sender and subject.": {
+    "Search for Khurda, choose “Log bank message or email”, then set Message to the email's body, and Sender and Subject to the email's sender and subject.": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "ابحث عن «صرفي» واختر «تسجيل رسالة أو إيميل البنك»، وخلّ «الرسالة» على نص الإيميل، و«المرسل» و«الموضوع» على مرسل الإيميل وموضوعه."
+            "value": "ابحث عن «خردة» واختر «تسجيل رسالة أو إيميل البنك»، وخلّ «الرسالة» على نص الإيميل، و«المرسل» و«الموضوع» على مرسل الإيميل وموضوعه."
           }
         }
       }
     },
-    "Search for Sarfi, choose “Log bank message or email”, then tap Message and pick Shortcut Input → Message.": {
+    "Search for Khurda, choose “Log bank message or email”, then tap Message and pick Shortcut Input → Message.": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "ابحث عن «صرفي» واختر «تسجيل رسالة أو إيميل البنك»، ثم اضغط «الرسالة» واختر مُدخل الاختصار ← الرسالة."
+            "value": "ابحث عن «خردة» واختر «تسجيل رسالة أو إيميل البنك»، ثم اضغط «الرسالة» واختر مُدخل الاختصار ← الرسالة."
           }
         }
       }
@@ -1115,7 +1115,7 @@
         }
       }
     },
-    "This is the only time you'll type a number. When your salary SMS arrives, Sarfi uses the real amount.": {
+    "This is the only time you'll type a number. When your salary SMS arrives, Khurda uses the real amount.": {
       "localizations": {
         "ar": {
           "stringUnit": {
@@ -1265,12 +1265,12 @@
         }
       }
     },
-    "Your messages and transactions stay on this iPhone. Sarfi has no server and never asks for bank logins.": {
+    "Your messages and transactions stay on this iPhone. Khurda has no server and never asks for bank logins.": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "رسائلك وعملياتك تبقى على هذا الآيفون. صرفي ما عنده خادم وما يطلب أبداً بيانات دخول البنك."
+            "value": "رسائلك وعملياتك تبقى على هذا الآيفون. خردة ما عنده خادم وما يطلب أبداً بيانات دخول البنك."
           }
         }
       }

@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>Sarfi Prototype</title>
+<title>Khurda Prototype</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -224,7 +224,7 @@ td:first-child { font-weight: 600; }
         <circle cx="28" cy="28" r="15" style="fill:var(--sun)"/>
         <circle cx="34" cy="24" r="13" style="fill:var(--accent)"/>
       </svg>
-      <h1 data-i18n="heroTitle">Sarfi <span>صرفي</span></h1>
+      <h1 data-i18n="heroTitle">Khurda <span>خردة</span></h1>
       <p data-i18n="heroSub"></p>
     </div>
     <div class="lang" role="group" aria-label="Language">
@@ -278,7 +278,7 @@ td:first-child { font-weight: 600; }
         <h2 data-i18n="cmpTitle"></h2>
         <div class="tablewrap">
           <table>
-            <thead><tr><th></th><th>OutCap</th><th>Budget app</th><th class="us">Sarfi</th></tr></thead>
+            <thead><tr><th></th><th>OutCap</th><th>Budget app</th><th class="us">Khurda</th></tr></thead>
             <tbody id="cmp"></tbody>
           </table>
         </div>
@@ -297,16 +297,16 @@ const ltr = s => "⁦" + s + "⁩";
 // ---------- Text in both languages ----------
 const T = {
   en: {
-    heroTitle: 'Sarfi <span>صرفي</span>',
-    heroSub: "Pay with Apple Pay, or let your UAE bank text or email you as usual. Sarfi logs it by itself and keeps one number right: what you can spend today.",
+    heroTitle: 'Khurda <span>خردة</span>',
+    heroSub: "Pay with Apple Pay, or let your UAE bank text or email you as usual. Khurda logs it by itself and keeps one number right: what you can spend today.",
     tryEyebrow: "Try it", tryTitle: "Send the phone a payment",
-    trySub: "Tap a sample. It arrives like a real Apple Pay notification, bank SMS or email, a Shortcuts automation hands it to Sarfi, and the phone updates. Sample data, not real accounts.",
+    trySub: "Tap a sample. It arrives like a real Apple Pay notification, bank SMS or email, a Shortcuts automation hands it to Khurda, and the phone updates. Sample data, not real accounts.",
     pasteLabel: "Or paste your own bank message (stays in this browser)", send: "Send to phone",
     howEyebrow: "How it works without typing", howTitle: "Three automatic sources, set up once",
     howSub: "iOS doesn't let any app read your Wallet, messages or email. Apple's supported route is a Shortcuts automation you approve once per source. After that it runs by itself, and when Apple Pay and your bank both report a purchase, it counts once.",
     f1t: "1. You pay", f1: "Tap Apple Pay with any card, or your bank (ADCB, FAB, Emirates NBD, ADIB, Liv, Wio…) sends an SMS or email.",
-    f2t: "2. Automation runs", f2: "“When I tap any card in Wallet → Run immediately → Sarfi: Log Apple Pay payment.” The same idea works for bank messages and emails.",
-    f3t: "3. Sarfi updates", f3: "It reads amount and merchant, picks a category, merges the Apple Pay tap with the bank's alert, skips OTPs and refreshes the widget.",
+    f2t: "2. Automation runs", f2: "“When I tap any card in Wallet → Run immediately → Khurda: Log Apple Pay payment.” The same idea works for bank messages and emails.",
+    f3t: "3. Khurda updates", f3: "It reads amount and merchant, picks a category, merges the Apple Pay tap with the bank's alert, skips OTPs and refreshes the widget.",
     cmpEyebrow: "What we took from each app", cmpTitle: "OutCap + Budget app, built for UAE banks",
     cmpNote: "Based on each app's App Store listing. OutCap reads Saudi bank SMS; Budget app relies on manual, voice, receipt and CSV entry.",
     tabs: ["Today", "Activity", "Plan", "Setup"],
@@ -323,15 +323,15 @@ const T = {
       { key: "wallet", ico: "Pay", title: "Apple Pay", rec: "Recommended",
         d: "Logs every tap with any card in Wallet, even if your bank sends no SMS.",
         steps: ["Shortcuts → Automation → New Automation → Transaction.", "Pick your cards, then Run Immediately.",
-          "Add Sarfi “Log Apple Pay payment”. Amount and Merchant come from the Shortcut Input."] },
+          "Add Khurda “Log Apple Pay payment”. Amount and Merchant come from the Shortcut Input."] },
       { key: "email", ico: "✉️", title: "Bank email alerts",
         d: "For banks that email you each payment.",
         steps: ["Shortcuts → Automation → New Automation → Email.", "Sender: your bank's alert address. Choose Run Immediately.",
-          "Add Sarfi “Log bank message or email” → Message: Shortcut Input."] },
+          "Add Khurda “Log bank message or email” → Message: Shortcut Input."] },
       { key: "sms", ico: "💬", title: "Bank SMS",
         d: "Your bank's text after each payment.",
         steps: ["Shortcuts → Automation → New Automation → Message.", "Sender: ADCB, FAB, EmiratesNBD (as shown in Messages). Choose Run Immediately.",
-          "Add Sarfi “Log bank message or email” → Message: Shortcut Input."] }],
+          "Add Khurda “Log bank message or email” → Message: Shortcut Input."] }],
     on: "On", waiting: { wallet: "Waiting for first tap", email: "Waiting for first email", sms: "Waiting for first SMS" },
     cash: "Paid cash? Tap + on Today.",
     appearance: "Appearance", looks: { light: "Light", dark: "Dark", auto: "Match iPhone" },
@@ -342,7 +342,7 @@ const T = {
     pAmount: "Amount", pType: "Type", pWhere: "Merchant", pCard: "Card", pCat: "Category", pBal: "Balance after",
     kinds: { purchase: "Purchase", withdrawal: "ATM cash", transferOut: "Transfer out", income: "Income", refund: "Refund", cardPayment: "Card bill payment", ownTransfer: "Between your accounts" },
     neutral: "doesn't change today's spend",
-    willSkip: "Sarfi would skip this message (OTP, promo, declined, or no amount).",
+    willSkip: "Khurda would skip this message (OTP, promo, declined, or no amount).",
     cmpRows: [
       ["Logs payments automatically", "yes:Saudi bank SMS", "no:Manual / AI import", "yes:Apple Pay, UAE bank SMS and email"],
       ["One daily number", "yes:", "no:", "yes:Pay-cycle based"],
@@ -354,16 +354,16 @@ const T = {
       ["Data stays on device", "yes:", "yes:iCloud sync", "yes:"]],
   },
   ar: {
-    heroTitle: 'صرفي <span>Sarfi</span>',
-    heroSub: "ادفع بـ Apple Pay، أو خلّ بنكك يرسل لك رسالة أو إيميل مثل العادة. صرفي يسجّلها لحاله ويضبط لك رقم واحد: كم تقدر تصرف اليوم.",
+    heroTitle: 'خردة <span>Khurda</span>',
+    heroSub: "ادفع بـ Apple Pay، أو خلّ بنكك يرسل لك رسالة أو إيميل مثل العادة. خردة يسجّلها لحاله ويضبط لك رقم واحد: كم تقدر تصرف اليوم.",
     tryEyebrow: "جرّبه", tryTitle: "أرسل للجوال دفعة",
-    trySub: "اضغط على مثال. يوصل مثل إشعار Apple Pay أو رسالة أو إيميل من البنك، والأتمتة في الاختصارات تسلّمه لصرفي، والجوال يتحدّث. بيانات تجريبية، مو حسابات حقيقية.",
+    trySub: "اضغط على مثال. يوصل مثل إشعار Apple Pay أو رسالة أو إيميل من البنك، والأتمتة في الاختصارات تسلّمه لخردة، والجوال يتحدّث. بيانات تجريبية، مو حسابات حقيقية.",
     pasteLabel: "أو الصق رسالة من بنكك (تبقى في هذا المتصفح)", send: "أرسل للجوال",
     howEyebrow: "كيف يشتغل بدون ما تكتب", howTitle: "ثلاثة مصادر تلقائية، تضبطها مرة وحدة",
     howSub: "نظام iOS ما يسمح لأي تطبيق يقرأ المحفظة أو الرسائل أو الإيميل. الطريقة المعتمدة من Apple هي أتمتة في الاختصارات توافق عليها مرة لكل مصدر. بعدها تشتغل لحالها، ولو Apple Pay والبنك بلّغوا عن نفس الدفعة، تنحسب مرة وحدة.",
     f1t: "١. تدفع", f1: "تدفع بـ Apple Pay بأي بطاقة، أو بنكك (أبوظبي التجاري، أبوظبي الأول، الإمارات دبي الوطني، مصرف أبوظبي الإسلامي، ليف، ويو…) يرسل لك رسالة أو إيميل.",
-    f2t: "٢. الأتمتة تشتغل", f2: "«عند الدفع بأي بطاقة في المحفظة ← تشغيل فوراً ← صرفي: تسجيل دفعة Apple Pay». ونفس الفكرة للرسائل والإيميل.",
-    f3t: "٣. صرفي يتحدّث", f3: "يقرأ المبلغ والتاجر، ويختار الفئة، ويدمج دفعة Apple Pay مع تنبيه البنك، ويتجاهل رموز التحقق، ويحدّث الأداة.",
+    f2t: "٢. الأتمتة تشتغل", f2: "«عند الدفع بأي بطاقة في المحفظة ← تشغيل فوراً ← خردة: تسجيل دفعة Apple Pay». ونفس الفكرة للرسائل والإيميل.",
+    f3t: "٣. خردة يتحدّث", f3: "يقرأ المبلغ والتاجر، ويختار الفئة، ويدمج دفعة Apple Pay مع تنبيه البنك، ويتجاهل رموز التحقق، ويحدّث الأداة.",
     cmpEyebrow: "شو أخذنا من كل تطبيق", cmpTitle: "OutCap و Budget app، مصمم لبنوك الإمارات",
     cmpNote: "حسب صفحة كل تطبيق في App Store. ‏OutCap يقرأ رسائل البنوك السعودية، و Budget app يعتمد على الإدخال اليدوي أو الصوتي أو الإيصالات أو ملفات CSV.",
     tabs: ["اليوم", "الحركات", "الخطة", "الإعداد"],
@@ -382,15 +382,15 @@ const T = {
       { key: "wallet", ico: "Pay", title: "Apple Pay", rec: "ننصح فيه",
         d: "يسجّل كل دفعة بأي بطاقة في المحفظة، حتى لو بنكك ما يرسل رسائل.",
         steps: ["الاختصارات ← الأتمتة ← أتمتة جديدة ← المعاملة.", "اختر بطاقاتك، وبعدين «تشغيل فوراً».",
-          "أضف صرفي «تسجيل دفعة Apple Pay». المبلغ والتاجر من مُدخل الاختصار."] },
+          "أضف خردة «تسجيل دفعة Apple Pay». المبلغ والتاجر من مُدخل الاختصار."] },
       { key: "email", ico: "✉️", title: "تنبيهات البنك بالإيميل",
         d: "للبنوك اللي ترسل لك إيميل مع كل دفعة.",
         steps: ["الاختصارات ← الأتمتة ← أتمتة جديدة ← البريد الإلكتروني.", "المرسل: إيميل التنبيهات من بنكك. اختر «تشغيل فوراً».",
-          "أضف صرفي «تسجيل رسالة البنك أو الإيميل» ← الرسالة: مُدخل الاختصار."] },
+          "أضف خردة «تسجيل رسالة البنك أو الإيميل» ← الرسالة: مُدخل الاختصار."] },
       { key: "sms", ico: "💬", title: "رسائل البنك",
         d: "الرسالة اللي يرسلها بنكك بعد كل دفعة.",
         steps: ["الاختصارات ← الأتمتة ← أتمتة جديدة ← رسالة.", "المرسل: ADCB أو FAB أو EmiratesNBD (مثل ما يظهر في الرسائل). اختر «تشغيل فوراً».",
-          "أضف صرفي «تسجيل رسالة البنك أو الإيميل» ← الرسالة: مُدخل الاختصار."] }],
+          "أضف خردة «تسجيل رسالة البنك أو الإيميل» ← الرسالة: مُدخل الاختصار."] }],
     on: "شغّال", waiting: { wallet: "ننتظر أول دفعة", email: "ننتظر أول إيميل", sms: "ننتظر أول رسالة" },
     cash: "دفعت كاش؟ اضغط + في صفحة اليوم.",
     appearance: "المظهر", looks: { light: "فاتح", dark: "داكن", auto: "حسب الآيفون" },
@@ -401,7 +401,7 @@ const T = {
     pAmount: "المبلغ", pType: "النوع", pWhere: "التاجر", pCard: "البطاقة", pCat: "الفئة", pBal: "الرصيد بعدها",
     kinds: { purchase: "شراء", withdrawal: "سحب نقدي", transferOut: "تحويل صادر", income: "دخل", refund: "استرداد", cardPayment: "سداد بطاقة", ownTransfer: "بين حساباتك" },
     neutral: "ما يغيّر مصروف اليوم",
-    willSkip: "صرفي بيتجاهل هالرسالة (رمز تحقق، عرض، عملية مرفوضة، أو بدون مبلغ).",
+    willSkip: "خردة بيتجاهل هالرسالة (رمز تحقق، عرض، عملية مرفوضة، أو بدون مبلغ).",
     cmpRows: [
       ["يسجّل الدفعات تلقائياً", "yes:رسائل البنوك السعودية", "no:يدوي / استيراد بالذكاء الاصطناعي", "yes:Apple Pay ورسائل وإيميلات بنوك الإمارات"],
       ["رقم واحد كل يوم", "yes:", "no:", "yes:حسب دورة الراتب"],
@@ -458,7 +458,7 @@ const SAMPLES = [
 ];
 
 let lang = "en", tab = 0, lastAdded = null, look = "light", sheetOpen = false;
-try { lang = localStorage.getItem("sarfi-lang") || "en"; look = localStorage.getItem("sarfi-look") || "light"; } catch {}
+try { lang = localStorage.getItem("khurda-lang") || "en"; look = localStorage.getItem("khurda-look") || "light"; } catch {}
 
 // ---------- Logic (mirrors SafeToSpend.swift) ----------
 function cycle() {
@@ -640,7 +640,7 @@ function notify(sender, text, appStyle) {
   const n = document.createElement("div");
   n.className = "note";
   const dir = appStyle ? (lang === "ar" ? "rtl" : "ltr") : "auto";
-  n.innerHTML = `<header><b>${appStyle ? (lang === "ar" ? "صرفي" : "Sarfi") : esc(sender)}</b><span>${T[lang].now}</span></header><p dir="${dir}">${esc(text)}</p>`;
+  n.innerHTML = `<header><b>${appStyle ? (lang === "ar" ? "خردة" : "Khurda") : esc(sender)}</b><span>${T[lang].now}</span></header><p dir="${dir}">${esc(text)}</p>`;
   box.prepend(n);
   setTimeout(() => { n.classList.add("out"); setTimeout(() => n.remove(), 400); }, appStyle ? 3200 : 2600);
 }
@@ -715,7 +715,7 @@ document.addEventListener("click", e => {
   const tb = e.target.closest("[data-tab]");
   if (tb) { tab = +tb.dataset.tab; lastAdded = null; renderPhone(); return; }
   const lk = e.target.closest("button[data-look]");
-  if (lk) { look = lk.dataset.look; try { localStorage.setItem("sarfi-look", look); } catch {} renderPhone(); return; }
+  if (lk) { look = lk.dataset.look; try { localStorage.setItem("khurda-look", look); } catch {} renderPhone(); return; }
   if (e.target.closest("[data-add]")) { sheetOpen = true; renderPhone(); $("#add-amount").focus(); return; }
   if (e.target.matches("[data-sheet-cancel]")) { sheetOpen = false; renderPhone(); return; }
   const sm = e.target.closest(".sample");
@@ -739,7 +739,7 @@ $("#send-custom").addEventListener("click", () => {
 $("#custom-msg").addEventListener("input", preview);
 $("#custom-sender").addEventListener("input", preview);
 for (const l of ["en", "ar"]) $("#lang-" + l).addEventListener("click", () => {
-  lang = l; try { localStorage.setItem("sarfi-lang", l); } catch {}
+  lang = l; try { localStorage.setItem("khurda-lang", l); } catch {}
   render();
 });
 

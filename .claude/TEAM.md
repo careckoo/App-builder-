@@ -1,4 +1,4 @@
-# Team rules (every Sarfi agent follows these)
+# Team rules (every Khurda agent follows these)
 
 1. **You never talk to the user.** Only the Lead (the main Claude session) talks to the user.
    You have no question tool. If you need a decision, stop at that point and put it under

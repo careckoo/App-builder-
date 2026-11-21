@@ -1,4 +1,4 @@
-# Sarfi · صرفي
+# Khurda · خردة
 
 An iPhone budget app for the UAE that tracks spending **automatically from your bank's SMS alerts**, in Arabic and English. You never type an amount.
 
@@ -24,7 +24,7 @@ iOS does **not** let any App Store app read the SMS inbox. Apple's supported rou
 1. Shortcuts → Automation → **New Automation** → **Message**
 2. **Sender**: `ADCB`, `FAB`, `EmiratesNBD`… (exactly as shown in Messages)
 3. **Run Immediately** (no confirmation prompt)
-4. Action: **Sarfi → Log bank message**, Message = *Shortcut Input → Message*
+4. Action: **Khurda → Log bank message**, Message = *Shortcut Input → Message*
 
 From then on every bank alert runs `LogBankMessageIntent` in the background. It parses the SMS, saves the transaction, updates the widget, and shows a small banner like "AED 45.50 · CARREFOUR. Left today: AED 375". The app ships an `AppShortcutsProvider`, so the action shows up in Shortcuts right after install. The in-app setup screen walks through these taps and confirms when the first message arrives.
 
@@ -35,17 +35,17 @@ Apps can't create automations themselves, so this one-time setup (about a minute
 ## Project layout
 
 ```
-SarfiCore/               Swift package: pure logic, unit-tested, no UI
+KhurdaCore/               Swift package: pure logic, unit-tested, no UI
   BankMessageParser      SMS → amount, currency, type, merchant, card, balance, date
   Categorizer            merchant → category (UAE merchants, Arabic + English), learns user overrides
   SafeToSpend, PayCycle  daily allowance from salary, bills, savings goal, days to payday
   DuplicateDetector      ignores the same purchase arriving twice
   BankDirectory          UAE banks, Arabic names, SMS sender IDs
-Sarfi/                   iOS app (SwiftUI + SwiftData + App Intents, iOS 17+)
+Khurda/                   iOS app (SwiftUI + SwiftData + App Intents, iOS 17+)
   Intents/               LogBankMessageIntent (the Shortcut action), SafeToSpendToday (Siri)
   Views/                 Today, Activity, Plan (budgets), Setup/Settings
   Resources/             Localizable.xcstrings (English + Arabic), entitlements
-SarfiWidget/             Home Screen + Lock Screen widget
+KhurdaWidget/             Home Screen + Lock Screen widget
 prototype/               Browser prototype + JS copy of the parser + tests
 project.yml              XcodeGen spec
 ```
@@ -54,14 +54,14 @@ project.yml              XcodeGen spec
 
 ```bash
 brew install xcodegen
-xcodegen                         # creates Sarfi.xcodeproj
-open Sarfi.xcodeproj
+xcodegen                         # creates Khurda.xcodeproj
+open Khurda.xcodeproj
 ```
-Set your Apple Developer Team under Signing for both targets. Change the bundle ID prefix (`ae.sarfi`) and the App Group (`group.ae.sarfi.shared`) to ones you own, then run on an iPhone. The Shortcuts automation needs a real device to receive SMS.
+Set your Apple Developer Team under Signing for both targets. Change the bundle ID prefix (`ae.khurda`) and the App Group (`group.ae.khurda.shared`) to ones you own, then run on an iPhone. The Shortcuts automation needs a real device to receive SMS.
 
 Tests:
 ```bash
-cd SarfiCore && swift test        # Swift parser tests (Mac or Linux with Swift)
+cd KhurdaCore && swift test        # Swift parser tests (Mac or Linux with Swift)
 node prototype/parser.test.mjs    # same cases against the JS copy
 ```
 

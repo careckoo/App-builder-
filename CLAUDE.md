@@ -1,4 +1,4 @@
-# Sarfi · صرفي — project instructions
+# Khurda · خردة — project instructions
 
 iPhone budget app for the UAE that logs spending from bank SMS (see README.md).
 
@@ -9,7 +9,7 @@ iPhone budget app for the UAE that logs spending from bank SMS (see README.md).
 
 | Agent (`.claude/agents/`) | Owns | Skill it uses |
 |---|---|---|
-| ios-engineer | Swift/SwiftUI app code, SarfiCore parser | — |
+| ios-engineer | Swift/SwiftUI app code, KhurdaCore parser | — |
 | bug-hunter | Finding repeats of a fixed bug | bug-echo |
 | backlog-keeper | `UNFORGET.md` (the one backlog) | unforget |
 | quality-reviewer | Reviewing skills/agents and code diffs | skill-reviewer |
@@ -27,5 +27,5 @@ iPhone budget app for the UAE that logs spending from bank SMS (see README.md).
 
 ## Facts to keep straight
 - No Mac in the cloud container: Swift is not compiled here. Parser rules are checked with `node prototype/parser.test.mjs`.
-- Parser changes go in both `SarfiCore` (Swift) and `prototype/parser.js` (JS), with tests in both.
+- Parser changes go in both `KhurdaCore` (Swift) and `prototype/parser.js` (JS), with tests in both.
 - Skills in `.claude/skills/` are vendored from github.com/Terryc21 (Apache-2.0); see each folder's LICENSE.

@@ -1,10 +1,10 @@
 import SwiftUI
 import SwiftData
 import WidgetKit
-import SarfiCore
+import KhurdaCore
 
 @main
-struct SarfiApp: App {
+struct KhurdaApp: App {
     @AppStorage("didFinishSetup", store: AppSettings.defaults) private var didFinishSetup = false
     @AppStorage("appearance", store: AppSettings.defaults) private var appearance = Appearance.light
     @Environment(\.scenePhase) private var scenePhase
