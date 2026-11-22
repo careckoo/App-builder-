@@ -6,6 +6,8 @@ options:
   deploymentTarget:
     iOS: "17.0"
   developmentLanguage: en
+  # Xcode 15.x can only open project format 60 or lower; XcodeGen 2.48 defaults to 77 (Xcode 16).
+  projectFormat: xcode15_3
 packages:
   KhurdaCore:
     path: KhurdaCore

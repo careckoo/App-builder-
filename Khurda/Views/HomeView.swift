@@ -251,6 +251,8 @@ struct QuickAddView: View {
             : Categorizer(learned: learned).category(for: ParsedTransaction(amount: 1, merchant: name))
     }
 
+    // Xcode 15 (Swift 5.10) isolates only `body` to the main actor, not the whole View.
+    @MainActor
     private func save() {
         guard let parsedAmount else { return }
         _ = try? TransactionLogger(context: context).logManual(amount: parsedAmount.amount, currency: parsedAmount.currency,

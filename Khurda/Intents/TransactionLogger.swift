@@ -17,7 +17,9 @@ struct TransactionLogger {
 
     let context: ModelContext
 
-    init(context: ModelContext = Store.container.mainContext) { self.context = context }
+    // A default argument is evaluated outside the main actor (Swift 5.10), so the shared
+    // context is read here, inside the @MainActor initialiser.
+    init(context: ModelContext? = nil) { self.context = context ?? Store.container.mainContext }
 
     /// A bank SMS or alert email. Email is recognised by a subject, an address as sender, or HTML.
     func log(message: String, sender: String?, subject: String? = nil) throws -> Outcome {
