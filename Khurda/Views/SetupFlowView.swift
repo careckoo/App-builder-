@@ -42,6 +42,7 @@ struct SetupFlowView: View {
             Button("Let's start") { withAnimation { step = 1 } }.buttonStyle(.borderedProminent).controlSize(.large)
         }
         .padding(32)
+        .padding(.bottom, 40)   // clear of the page dots
     }
 
     private var salary: some View {
@@ -49,7 +50,7 @@ struct SetupFlowView: View {
             Section {
                 TextField("Monthly salary (AED)", value: $income, format: .number).keyboardType(.numberPad)
                 Picker("Payday", selection: $payday) {
-                    ForEach(1...28, id: \.self) { Text("\($0)").tag($0) }
+                    ForEach(1...31, id: \.self) { Text("\($0)").tag($0) }
                 }
                 TextField("Save each month (AED)", value: $savings, format: .number).keyboardType(.numberPad)
             } header: {
@@ -189,7 +190,7 @@ struct SettingsView: View {
                 Section("Salary") {
                     TextField("Monthly salary (AED)", value: $income, format: .number).keyboardType(.numberPad)
                         .onChange(of: income) { AppSettings.monthlyIncome = income }
-                    Picker("Payday", selection: $payday) { ForEach(1...28, id: \.self) { Text("\($0)").tag($0) } }
+                    Picker("Payday", selection: $payday) { ForEach(1...31, id: \.self) { Text("\($0)").tag($0) } }
                         .onChange(of: payday) { AppSettings.payday = payday }
                     TextField("Save each month (AED)", value: $savings, format: .number).keyboardType(.numberPad)
                         .onChange(of: savings) { AppSettings.savingsGoal = savings }

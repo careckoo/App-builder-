@@ -16,13 +16,20 @@ struct KhurdaApp: App {
             }
             .tint(Theme.accent)
             .preferredColorScheme(appearance.colorScheme)
-            .task { CycleReset.runIfNeeded(context: Store.container.mainContext) }
+            .task {
+                #if DEBUG
+                DemoData.seedIfNeeded(context: Store.container.mainContext)
+                #endif
+                CycleReset.runIfNeeded(context: Store.container.mainContext)
+            }
         }
         .modelContainer(Store.container)
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             // Payday may have passed while the app sat in the background.
-            case .active: CycleReset.runIfNeeded(context: Store.container.mainContext)
+            case .active:
+                CycleReset.runIfNeeded(context: Store.container.mainContext)
+                Reminders.reschedule(context: Store.container.mainContext)
             // Edits made in the app (category, delete, fixed-bill toggle) should reach the widget.
             case .background: WidgetCenter.shared.reloadAllTimelines()
             default: break
@@ -32,16 +39,23 @@ struct KhurdaApp: App {
 }
 
 struct RootTabView: View {
+    #if DEBUG
+    @State private var tab = DemoData.tab
+    #else
+    @State private var tab = 0
+    #endif
     var body: some View {
-        TabView {
+        TabView(selection: $tab) {
             HomeView()
-                .tabItem { Label("Today", systemImage: "sun.max.fill") }
+                .tabItem { Label("Today", systemImage: "sun.max.fill") }.tag(0)
             ActivityView()
-                .tabItem { Label("Activity", systemImage: "list.bullet.rectangle") }
+                .tabItem { Label("Activity", systemImage: "list.bullet.rectangle") }.tag(1)
+            InsightsView()
+                .tabItem { Label("Insights", systemImage: "chart.bar.xaxis") }.tag(2)
             BudgetsView()
-                .tabItem { Label("Plan", systemImage: "chart.pie.fill") }
+                .tabItem { Label("Plan", systemImage: "chart.pie.fill") }.tag(3)
             SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+                .tabItem { Label("Settings", systemImage: "gearshape.fill") }.tag(4)
         }
     }
 }

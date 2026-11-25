@@ -85,6 +85,60 @@ final class Obligation {
     }
 }
 
+/// A jameya (جمعية): a rotating savings group. The share is a fixed bill each month; in your turn the
+/// whole pot comes to you. Schedule maths lives in `JameyaSchedule` (KhurdaCore).
+@Model
+final class Jameya {
+    var name: String = ""
+    var share: Decimal = 0
+    var members: Int = 10
+    var myTurn: Int = 1
+    /// Any day in the first round's month.
+    var firstMonth: Date = Date.now
+    var dueDay: Int = 27
+    /// The organiser, for the reminder ("Pay Umm Khalid"). Optional.
+    var organiser: String = ""
+    /// Start of the pay cycle in which this cycle's share was paid (matched from the bank or ticked by hand).
+    var paidCycleStart: Date?
+    var receivedPot: Bool = false
+    var createdAt: Date = Date.now
+
+    init(name: String, share: Decimal, members: Int, myTurn: Int, firstMonth: Date, dueDay: Int, organiser: String = "") {
+        self.name = name; self.share = share; self.members = members; self.myTurn = myTurn
+        self.firstMonth = firstMonth; self.dueDay = dueDay; self.organiser = organiser
+    }
+
+    var schedule: JameyaSchedule {
+        JameyaSchedule(share: share, members: members, myTurn: myTurn, firstMonth: firstMonth, dueDay: dueDay)
+    }
+
+    /// The share is due in this pay cycle (one of its rounds falls between the two paydays).
+    func isDue(in cycle: PayCycle) -> Bool { !schedule.rounds(dueFrom: cycle.start, to: cycle.end).isEmpty }
+    func isPaid(in cycle: PayCycle) -> Bool { paidCycleStart == cycle.start }
+}
+
+/// Something to save for: a car, Umrah, a wedding, Ramadan and Eid. The monthly amount is set aside
+/// on payday, before today's amount is worked out.
+@Model
+final class SavingsGoal {
+    var name: String = ""
+    var target: Decimal = 0
+    var saved: Decimal = 0
+    var monthly: Decimal = 0
+    var symbol: String = "star.fill"
+    var targetDate: Date?
+    var createdAt: Date = Date.now
+
+    init(name: String, target: Decimal, monthly: Decimal, symbol: String = "star.fill", targetDate: Date? = nil) {
+        self.name = name; self.target = target; self.monthly = monthly; self.symbol = symbol; self.targetDate = targetDate
+    }
+
+    var progress: Double {
+        target <= 0 ? 0 : min(1, NSDecimalNumber(decimal: saved / target).doubleValue)
+    }
+    var isReached: Bool { target > 0 && saved >= target }
+}
+
 /// When someone moves a merchant to another category, remember it.
 @Model
 final class MerchantRule {
@@ -129,6 +183,13 @@ enum CycleReset {
         let last = AppSettings.defaults.object(forKey: key) as? Date
         guard last != start else { return }
         (try? context.fetch(FetchDescriptor<Obligation>()))?.forEach { $0.isPaidThisCycle = false }
+        // The monthly amount for each goal was set aside from this salary: count it as saved.
+        // Only when a cycle was seen before, so the first launch doesn't credit a month nobody saved.
+        if last != nil {
+            (try? context.fetch(FetchDescriptor<SavingsGoal>()))?.forEach { g in
+                if !g.isReached { g.saved = min(g.target, g.saved + g.monthly) }
+            }
+        }
         try? context.save()
         AppSettings.defaults.set(start, forKey: key)
     }
@@ -137,7 +198,8 @@ enum CycleReset {
 /// One SwiftData store in the App Group, so the Shortcut, the widget and the app all see the same data.
 /// CloudKit sync can be switched on later with `cloudKitDatabase: .private(...)`.
 enum Store {
-    static let schema = Schema([Transaction.self, Budget.self, Obligation.self, MerchantRule.self])
+    static let schema = Schema([Transaction.self, Budget.self, Obligation.self, MerchantRule.self,
+                                Jameya.self, SavingsGoal.self])
 
     static let container: ModelContainer = {
         // Without the App Group entitlement (a free Apple ID, or an unsigned build) SwiftData traps

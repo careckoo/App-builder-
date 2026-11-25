@@ -89,7 +89,8 @@ struct SafeToSpendRing: View {
                     .font(Theme.bigNumber(size: 44))
                     .foregroundStyle(Theme.textPrimary)
                     .contentTransition(.numericText())
-                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
                 Text(message).font(.footnote.weight(.medium)).foregroundStyle(Theme.color(for: safe.status))
             }
             .padding(36)

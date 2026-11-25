@@ -10,8 +10,12 @@ struct BudgetsView: View {
     @Query private var transactions: [Transaction]
     @Query(sort: \Budget.limit, order: .reverse) private var budgets: [Budget]
     @Query(sort: \Obligation.dueDay) private var obligations: [Obligation]
+    @Query(sort: \Jameya.createdAt) private var jameyas: [Jameya]
+    @Query(sort: \SavingsGoal.createdAt) private var goals: [SavingsGoal]
     @State private var addingBudget = false
     @State private var addingBill = false
+    @State private var addingJameya = false
+    @State private var addingGoal = false
 
     private var cycle: PayCycle { .current(payday: AppSettings.payday) }
 
@@ -39,6 +43,24 @@ struct BudgetsView: View {
                         .padding(.vertical, 8)
                     }
                 }
+
+                Section {
+                    ForEach(jameyas) { j in
+                        NavigationLink { JameyaDetailView(jameya: j) } label: { JameyaRow(jameya: j) }
+                    }
+                    Button("Add a jameya", systemImage: "plus") { addingJameya = true }
+                } header: { Text("Jameya") } footer: {
+                    if jameyas.isEmpty {
+                        Text("In a jameya, everyone pays the same share each month and one person takes the whole pot. Khurda sets your share aside and tells you when it's your turn.")
+                    }
+                }
+
+                Section {
+                    ForEach(goals) { g in
+                        NavigationLink { GoalDetailView(goal: g) } label: { GoalRow(goal: g) }
+                    }
+                    Button("Add a savings goal", systemImage: "plus") { addingGoal = true }
+                } header: { Text("Savings goals") }
 
                 Section {
                     ForEach(budgets) { b in
@@ -72,6 +94,8 @@ struct BudgetsView: View {
             .navigationTitle("Plan")
             .sheet(isPresented: $addingBudget) { AddBudgetView() }
             .sheet(isPresented: $addingBill) { AddBillView() }
+            .sheet(isPresented: $addingJameya) { JameyaEditor() }
+            .sheet(isPresented: $addingGoal) { GoalEditor() }
         }
     }
 }
@@ -141,6 +165,8 @@ struct AddBillView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         context.insert(Obligation(title: title, amount: amount, dueDay: dueDay, category: .bills))
+                        try? context.save()
+                        Reminders.requestAndReschedule(context: context)
                         dismiss()
                     }
                     .disabled(title.isEmpty || amount <= 0)

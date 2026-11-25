@@ -60,6 +60,8 @@ struct TransactionLogger {
         if tx.isExpense, let bill = try matchingObligation(for: tx) {
             bill.isPaidThisCycle = true
             tx.isFixedObligation = true
+        } else {
+            try matchJameya(tx)
         }
         context.insert(tx)
         try context.save()
@@ -116,6 +118,8 @@ struct TransactionLogger {
         if tx.isExpense, let bill = try matchingObligation(for: tx) {
             bill.isPaidThisCycle = true
             tx.isFixedObligation = true
+        } else {
+            try matchJameya(tx)
         }
 
         context.insert(tx)
@@ -148,6 +152,29 @@ struct TransactionLogger {
         if tx.source == .wallet && source != .wallet { tx.fingerprint = fingerprint }
     }
 
+    /// A transfer out of exactly the share pays this cycle's jameya; a credit the size of the pot in
+    /// your month is the pot. The pot is your own money coming back (or an advance you repay), so it
+    /// doesn't inflate today's amount: it's marked as a move between your accounts.
+    private func matchJameya(_ tx: Transaction) throws {
+        let cycle = PayCycle.current(payday: AppSettings.payday)
+        guard tx.date >= cycle.start else { return }
+        let groups = try context.fetch(FetchDescriptor<Jameya>())
+        if tx.isExpense, tx.kind != .purchase || tx.merchant.isEmpty,
+           let j = groups.first(where: { $0.isDue(in: cycle) && !$0.isPaid(in: cycle) && $0.schedule.isShare(tx.amountAED) }) {
+            j.paidCycleStart = cycle.start
+            tx.isFixedObligation = true
+            tx.category = .transfer
+            if tx.note.isEmpty { tx.note = j.name }
+        } else if tx.kind == .income,
+                  let j = groups.first(where: { !$0.receivedPot && $0.schedule.isPot(tx.amountAED)
+                                                 && abs($0.schedule.myPayoutDate.timeIntervalSince(tx.date)) < 20 * 86_400 }) {
+            j.receivedPot = true
+            tx.kind = .ownTransfer
+            tx.category = .transfer
+            if tx.note.isEmpty { tx.note = j.name }
+        }
+    }
+
     private func matchingObligation(for tx: Transaction) throws -> Obligation? {
         // A pasted message from last cycle must not tick off this cycle's bill.
         guard tx.date >= PayCycle.current(payday: AppSettings.payday).start else { return nil }
@@ -176,7 +203,26 @@ struct SafeToSpendCalculator {
     /// Salary often lands a few days before payday (e.g. when payday falls on a weekend).
     static let earlyIncomeDays = 5
 
+    /// The pieces behind today's number, for the Today screen and Insights.
+    struct Numbers {
+        let cycle: PayCycle
+        let income: Decimal
+        let fixed: Decimal
+        let savings: Decimal
+        let spentBeforeToday: Decimal
+        let spentToday: Decimal
+        /// What flexible spending can use this cycle.
+        var available: Decimal { income - fixed - savings }
+    }
+
     func current(now: Date = .now) throws -> SafeToSpend {
+        let n = try numbers(now: now)
+        return SafeToSpend.compute(income: n.income, fixedObligations: n.fixed, savingsGoal: n.savings,
+                                   spentBeforeToday: n.spentBeforeToday, spentToday: n.spentToday,
+                                   daysLeft: n.cycle.daysLeft(from: now))
+    }
+
+    func numbers(now: Date = .now) throws -> Numbers {
         CycleReset.runIfNeeded(context: context, now: now)
         let cal = Calendar.dubai
         let cycle = PayCycle.current(payday: AppSettings.payday, today: now)
@@ -204,10 +250,17 @@ struct SafeToSpendCalculator {
         let obligations = try context.fetch(FetchDescriptor<Obligation>())
         let fixedPaid = txs.filter { $0.isFixedObligation }.reduce(Decimal(0)) { $0 + $1.amountAED }
         let fixedUnpaid = obligations.filter { !$0.isPaidThisCycle }.reduce(Decimal(0)) { $0 + $1.amount }
+        // A jameya share due this cycle and not paid yet is set aside like a bill. A paid one is
+        // already in `fixedPaid` (its transfer was marked as a fixed obligation).
+        let jameyaUnpaid = try context.fetch(FetchDescriptor<Jameya>())
+            .filter { $0.isDue(in: cycle) && !$0.isPaid(in: cycle) }
+            .reduce(Decimal(0)) { $0 + $1.share }
+        let goals = try context.fetch(FetchDescriptor<SavingsGoal>())
+            .filter { !$0.isReached }
+            .reduce(Decimal(0)) { $0 + $1.monthly }
 
-        return SafeToSpend.compute(income: income, fixedObligations: fixedPaid + fixedUnpaid,
-                                   savingsGoal: AppSettings.savingsGoal,
-                                   spentBeforeToday: spentBefore, spentToday: spentToday,
-                                   daysLeft: cycle.daysLeft(from: now))
+        return Numbers(cycle: cycle, income: income, fixed: fixedPaid + fixedUnpaid + jameyaUnpaid,
+                       savings: AppSettings.savingsGoal + goals,
+                       spentBeforeToday: spentBefore, spentToday: spentToday)
     }
 }

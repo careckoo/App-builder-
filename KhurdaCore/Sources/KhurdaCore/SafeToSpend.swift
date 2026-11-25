@@ -6,16 +6,24 @@ public struct PayCycle: Sendable, Equatable {
     public let start: Date
     public let end: Date   // exclusive: the next payday
 
+    /// - Parameter payday: 1–31. In a month shorter than that, payday is the month's last day
+    ///   (payday 31 → 30 April, 28 or 29 February).
     public static func current(payday: Int, today: Date = .now, calendar: Calendar = .dubai) -> PayCycle {
-        let day = min(max(payday, 1), 28)
-        var comps = calendar.dateComponents([.year, .month], from: today)
-        comps.day = day
-        let thisMonthPayday = calendar.date(from: comps)!
-        let start = today >= calendar.startOfDay(for: thisMonthPayday)
-            ? thisMonthPayday
-            : calendar.date(byAdding: .month, value: -1, to: thisMonthPayday)!
-        let end = calendar.date(byAdding: .month, value: 1, to: start)!
-        return PayCycle(start: calendar.startOfDay(for: start), end: calendar.startOfDay(for: end))
+        let wanted = min(max(payday, 1), 31)
+        func paydayDate(inMonthOf date: Date) -> Date {
+            var comps = calendar.dateComponents([.year, .month], from: date)
+            comps.day = 1
+            let first = calendar.date(from: comps)!
+            let length = calendar.range(of: .day, in: .month, for: first)?.count ?? 28
+            comps.day = min(wanted, length)
+            return calendar.startOfDay(for: calendar.date(from: comps)!)
+        }
+        let thisMonth = paydayDate(inMonthOf: today)
+        let start = today >= thisMonth
+            ? thisMonth
+            : paydayDate(inMonthOf: calendar.date(byAdding: .month, value: -1, to: thisMonth)!)
+        let end = paydayDate(inMonthOf: calendar.date(byAdding: .month, value: 1, to: start)!)
+        return PayCycle(start: start, end: end)
     }
 
     public func daysLeft(from today: Date = .now, calendar: Calendar = .dubai) -> Int {
