@@ -217,7 +217,8 @@ public enum MessageReader {
         public var isWorthTeaching: Bool {
             parsed == nil && !ignored && !BankMessageParser.isIgnorable(text) && text.contains(where: \.isNumber)
         }
-        var ignored = false
+        /// An OTP subject: skipped on purpose.
+        public var ignored = false
     }
 
     public static func read(_ message: String, sender: String?, subject: String? = nil, receivedAt: Date = .now) -> Result {

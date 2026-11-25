@@ -109,9 +109,13 @@ struct JameyaDetailView: View {
                 Section {
                     Toggle("I've received the pot", isOn: Binding(get: { jameya.receivedPot },
                                                                  set: { setPotReceived($0) }))
+                        // Only once the credit is in, so it can be kept out of today's amount.
+                        .disabled(!jameya.receivedPot && potCandidate == nil)
                 } footer: {
                     if let tx = potCandidate, !jameya.receivedPot {
                         Text("We'll treat the \(Theme.aed(tx.amountAED)) that came in on \(tx.date.formatted(.dateTime.day().month())) as your pot, so it doesn't count as spending money.")
+                    } else if !jameya.receivedPot {
+                        Text("When your pot arrives in your account, tick this so it doesn't go into today's amount.")
                     } else {
                         Text("Your pot is your own money coming back (or paid in advance), so it doesn't go into today's amount.")
                     }
@@ -191,16 +195,17 @@ struct JameyaDetailView: View {
     @MainActor
     private func setPotReceived(_ received: Bool) {
         if received {
-            if let tx = potCandidate {
-                tx.kind = .ownTransfer
-                tx.category = .transfer
-                if tx.note.isEmpty { tx.note = jameya.name }
-                jameya.potFingerprint = tx.fingerprint
-            }
-        } else if let fp = jameya.potFingerprint {
-            let txs = (try? context.fetch(FetchDescriptor<Transaction>(predicate: #Predicate { $0.fingerprint == fp }))) ?? []
-            for tx in txs where tx.kind == .ownTransfer { tx.kind = .income; tx.category = .income }
-            jameya.potFingerprint = nil
+            guard let tx = potCandidate else { return }
+            tx.kind = .ownTransfer
+            tx.category = .transfer
+            if tx.note.isEmpty { tx.note = jameya.name }
+            jameya.potTransactionID = try? JSONEncoder().encode(tx.persistentModelID)
+        } else if let data = jameya.potTransactionID,
+                  let id = try? JSONDecoder().decode(PersistentIdentifier.self, from: data),
+                  let tx = context.model(for: id) as? Transaction, !tx.isDeleted, tx.kind == .ownTransfer {
+            tx.kind = .income
+            tx.category = .income
+            jameya.potTransactionID = nil
         }
         jameya.receivedPot = received
         save()
@@ -290,6 +295,14 @@ struct JameyaEditor: View {
     private func save() {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         if let j = jameya {
+            // Paid rounds are remembered by number; keep each one on the same month after the edit.
+            let old = j.schedule
+            let new = JameyaSchedule(share: share, members: members, myTurn: myTurn, firstMonth: firstMonth, dueDay: dueDay)
+            func remap(_ rounds: Set<Int>) -> Set<Int> {
+                Set(rounds.compactMap { $0 <= old.members ? new.round(on: old.dueDate(round: $0)) : nil })
+            }
+            j.paidRounds = remap(j.paidRounds)
+            j.bankPaidRounds = remap(j.bankPaidRounds)
             j.name = trimmed; j.share = share; j.members = members; j.myTurn = myTurn
             j.firstMonth = firstMonth; j.dueDay = dueDay; j.organiser = organiser
         } else {

@@ -2457,6 +2457,16 @@
         }
       }
     },
+    "When your pot arrives in your account, tick this so it doesn't go into today's amount.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لما توصل جمعيتك حسابك، علّم هني عشان ما تدخل في مصروف اليوم."
+          }
+        }
+      }
+    },
     "Where": {
       "localizations": {
         "ar": {

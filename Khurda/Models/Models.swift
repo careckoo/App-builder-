@@ -104,8 +104,9 @@ final class Jameya {
     /// bills; rounds ticked by hand still need their share set aside.
     var bankPaidRoundsRaw: String = ""
     var receivedPot: Bool = false
-    /// Fingerprint of the credit confirmed as the pot, so un-ticking can put it back as income.
-    var potFingerprint: String?
+    /// The credit confirmed as the pot (its PersistentIdentifier, as JSON), so un-ticking puts back
+    /// exactly that one as income.
+    var potTransactionID: Data?
     var createdAt: Date = Date.now
 
     init(name: String, share: Decimal, members: Int, myTurn: Int, firstMonth: Date, dueDay: Int, organiser: String = "") {
@@ -167,7 +168,16 @@ final class SavingsGoal {
     }
     var isReached: Bool { target > 0 && saved >= target }
 
-    func reserve(in cycle: PayCycle) -> Decimal { lastCreditCycleStart == cycle.start ? lastCredit : 0 }
+    /// What this cycle sets aside for the goal: what the last payday credited. Moving payday shifts the
+    /// cycle start by a few days, so "this cycle's credit" means credited within the last ~3 weeks.
+    /// A goal from before this field existed (no credit recorded) keeps setting aside its monthly amount;
+    /// one created during this cycle starts on the next payday.
+    func reserve(in cycle: PayCycle) -> Decimal {
+        if let credited = lastCreditCycleStart {
+            return abs(credited.timeIntervalSince(cycle.start)) < 20 * 86_400 ? lastCredit : 0
+        }
+        return createdAt < cycle.start ? min(monthly, max(0, target - saved)) : 0
+    }
 }
 
 /// A message shape the person taught Khurda (see `MessageTemplate`). Stored as JSON.
@@ -193,6 +203,7 @@ final class UnreadMessage {
     var text: String = ""
     var sender: String?
     var receivedAt: Date = Date.now
+    var isEmail: Bool = false
     init(text: String, sender: String?) { self.text = text; self.sender = sender }
 }
 

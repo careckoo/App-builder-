@@ -28,11 +28,14 @@ struct TransactionLogger {
         // Same reading as the "Paste a message" preview: HTML and footer removed, an OTP subject skips
         // the email, and a subject like "Debit card purchase" helps when the body has no verb.
         let read = MessageReader.read(message, sender: sender, subject: subject)
-        if let parsed = read.parsed ?? learned(read.text, sender: sender) {
+        // Learned shapes only for messages the parser couldn't read, never for ones it skips on
+        // purpose (an OTP, a declined payment, a promo): those can look just like a purchase.
+        let skippable = read.ignored || BankMessageParser.isIgnorable(read.text)
+        if let parsed = read.parsed ?? (skippable ? nil : learned(read.text, sender: sender)) {
             return try save(parsed, via: read.isEmail ? .email : .sms, original: read.text)
         }
         if read.isWorthTeaching {
-            try keepUnread(read.text, sender: sender)
+            try keepUnread(read.text, sender: sender, isEmail: read.isEmail)
             return .keptToTeach
         }
         return .notATransaction
@@ -47,10 +50,12 @@ struct TransactionLogger {
         return nil
     }
 
-    private func keepUnread(_ text: String, sender: String?) throws {
+    private func keepUnread(_ text: String, sender: String?, isEmail: Bool) throws {
         let existing = try context.fetch(FetchDescriptor<UnreadMessage>(predicate: #Predicate { $0.text == text }))
         guard existing.isEmpty else { return }
-        context.insert(UnreadMessage(text: text, sender: sender))
+        let m = UnreadMessage(text: text, sender: sender)
+        m.isEmail = isEmail
+        context.insert(m)
         try context.save()
     }
 
@@ -62,7 +67,7 @@ struct TransactionLogger {
         var outcome: Outcome = .notATransaction
         for w in waiting {
             guard let parsed = template.read(w.text, sender: w.sender, date: w.receivedAt) else { continue }
-            let result = try save(parsed, via: .sms, original: w.text)
+            let result = try save(parsed, via: w.isEmail ? .email : .sms, original: w.text)
             if w.text == message { outcome = result }
             context.delete(w)
         }

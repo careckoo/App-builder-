@@ -58,7 +58,45 @@ final class MessageTemplateTests: XCTestCase {
     func testOtherSenderIsNotRead() throws {
         let t = try XCTUnwrap(teach("You spent 45.50 at LULU on 17-11", amount: "45.50", merchant: "LULU"))
         XCTAssertNil(t.read("You spent 10.00 at KFC on 18-11", sender: "OTHERBANK"))
-        XCTAssertNotNil(t.read("You spent 10.00 at KFC on 18-11", sender: nil))   // pasted: no sender
+        XCTAssertNil(t.read("You spent 10.00 at KFC on 18-11", sender: nil))   // learned from a bank, not Paste
+        XCTAssertNotNil(t.read("You spent 10.00 at KFC on 18-11", sender: "newbank"))
+        // Learned from Paste: only reads pasted messages.
+        let pasted = try XCTUnwrap(teach("You spent 45.50 at LULU on 17-11", amount: "45.50", merchant: "LULU", sender: nil))
+        XCTAssertNil(pasted.read("You spent 10.00 at KFC on 18-11", sender: "ANYBANK"))
+        XCTAssertNotNil(pasted.read("You spent 10.00 at KFC on 18-11", sender: nil))
+    }
+
+    // MARK: Review findings (7908a74)
+
+    func testAmountAtTheStartIsAnchored() throws {
+        let t = try XCTUnwrap(teach("45.50 AED spent on your card x1234", amount: "45.50"))
+        XCTAssertNil(t.read("Your OTP is 9921 to confirm 300.00 AED spent on your card", sender: "NEWBANK"))
+        XCTAssertEqual(t.read("120.00 AED spent on your card x1234", sender: "NEWBANK")?.amount, 120)
+    }
+
+    func testTooLittleFixedTextIsRefused() {
+        XCTAssertNil(teach("45.50 AED", amount: "45.50"))
+    }
+
+    func testTailWordInsideMerchantName() throws {
+        let t = try XCTUnwrap(teach("Spent AED 20 at LULU on 17-11 card x1", amount: "20", merchant: "LULU"))
+        XCTAssertEqual(t.read("Spent AED 35 at MOVE ON CAFE on 18-11 card x1", sender: "NEWBANK")?.merchant, "MOVE ON CAFE")
+        let u = try XCTUnwrap(teach("Spent AED 20 at NOON. Balance AED 900", amount: "20", merchant: "NOON"))
+        XCTAssertEqual(u.read("Spent AED 99 at AMAZON.AE. Balance AED 801", sender: "NEWBANK")?.merchant, "AMAZON.AE")
+    }
+
+    func testMerchantAtTheEndWithTrailingSpace() throws {
+        let t = try XCTUnwrap(teach("Payment of AED 30 made at STARBUCKS \n", amount: "30", merchant: "STARBUCKS"))
+        XCTAssertEqual(t.read("Payment of AED 75 made at LULU HYPER MARKET", sender: "NEWBANK")?.merchant, "LULU HYPER MARKET")
+    }
+
+    func testInvisibleMarksAreIgnored() throws {
+        let rlm = "\u{200F}"
+        let t = try XCTUnwrap(teach("تم خصم \(rlm)45.50 درهم لدى \(rlm)مطعم الفنر\(rlm) بتاريخ 17/11", amount: "45.50", merchant: "مطعم الفنر"))
+        let p = try XCTUnwrap(t.read("تم خصم 20.00 درهم لدى كافيه بتاريخ 18/11", sender: "NEWBANK"))
+        XCTAssertEqual(p.merchant, "كافيه")
+        let q = try XCTUnwrap(t.read("تم خصم \(rlm)20.00 درهم لدى \(rlm)كافيه\(rlm) بتاريخ 18/11", sender: "NEWBANK"))
+        XCTAssertFalse(q.merchant!.unicodeScalars.contains { $0.value == 0x200F })
     }
 
     func testTappingSomethingThatIsNotAnAmountFails() {

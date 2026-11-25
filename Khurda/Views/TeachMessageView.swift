@@ -148,8 +148,8 @@ struct TeachMessageView: View {
     @MainActor
     private func save() {
         guard let template else { return }
+        // teach() reads (and removes) every waiting message of this shape, this one included.
         _ = try? TransactionLogger(context: context).teach(template, message: message, sender: sender)
-        if let unread, !unread.isDeleted { context.delete(unread); try? context.save() }
         onDone()
         dismiss()
     }
