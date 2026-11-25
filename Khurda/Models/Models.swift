@@ -140,7 +140,14 @@ enum Store {
     static let schema = Schema([Transaction.self, Budget.self, Obligation.self, MerchantRule.self])
 
     static let container: ModelContainer = {
-        let config = ModelConfiguration(schema: schema, groupContainer: .identifier(AppSettings.appGroup))
+        // Without the App Group entitlement (a free Apple ID, or an unsigned build) SwiftData traps
+        // instead of throwing, so check first and fall back to the app's own store. The widget then
+        // can't read the data, but the app and the Shortcuts actions still work.
+        let hasGroup = FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: AppSettings.appGroup) != nil
+        let config = hasGroup
+            ? ModelConfiguration(schema: schema, groupContainer: .identifier(AppSettings.appGroup))
+            : ModelConfiguration(schema: schema, groupContainer: .none)
         do { return try ModelContainer(for: schema, configurations: config) }
         catch { fatalError("Could not open the data store: \(error)") }
     }()
