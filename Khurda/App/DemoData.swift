@@ -13,6 +13,9 @@ enum DemoData {
         return Int(args[i + 1]) ?? 0
     }
 
+    static var showTeach: Bool { ProcessInfo.processInfo.arguments.contains("-teach") }
+    static let teachSample = "Dear customer, you spent 45.50 dirhams with your debit card x4821 at LULU HYPERMARKET on 24-11-2026. Avl bal 5,230.10"
+
     @MainActor
     static func seedIfNeeded(context: ModelContext) {
         guard isOn else { return }
@@ -48,14 +51,17 @@ enum DemoData {
         context.insert(Obligation(title: "DEWA", amount: 420, dueDay: 12, category: .bills))
         context.insert(Obligation(title: "e&", amount: 299, dueDay: 20, category: .bills))
         let firstMonth = cal.date(byAdding: .month, value: -2, to: today)!
-        context.insert(Jameya(name: "Work jameya", share: 1000, members: 10, myTurn: 5,
+        context.insert(Jameya(name: String(localized: "Work jameya"), share: 1000, members: 10, myTurn: 5,
                               firstMonth: firstMonth, dueDay: 27, organiser: "Umm Khalid"))
         let ramadan = SavingsGoal(name: String(localized: "Ramadan & Eid"), target: 6000, monthly: 750, symbol: "moon.stars.fill")
         ramadan.saved = 2250
+        ramadan.lastCredit = 750; ramadan.lastCreditCycleStart = cycle.start
         context.insert(ramadan)
         let travel = SavingsGoal(name: String(localized: "Travel"), target: 12000, monthly: 1000, symbol: "airplane")
         travel.saved = 3000
+        travel.lastCredit = 1000; travel.lastCreditCycleStart = cycle.start
         context.insert(travel)
+        context.insert(UnreadMessage(text: "عزيزي العميل، تم خصم 85.00 درهم من بطاقتك المنتهية بـ 4821 لدى مقهى الريف بتاريخ 24/11", sender: "NEWBANK"))
         context.insert(Budget(category: .delivery, limit: 600))
         context.insert(Budget(category: .dining, limit: 300))
         try? context.save()

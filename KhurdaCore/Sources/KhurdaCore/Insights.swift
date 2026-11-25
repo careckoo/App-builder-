@@ -21,6 +21,8 @@ public enum Insights {
         public let leftAtPayday: Decimal
         /// When it runs out before payday: how many days early.
         public let shortByDays: Int?
+        /// Nothing is left for flexible spending already (bills and savings take it all, or it's spent).
+        public let alreadyOver: Bool
     }
 
     /// - Parameters:
@@ -34,13 +36,16 @@ public enum Insights {
         // Today is already in `spent`, so project the days after today.
         let remainingDays = Decimal(max(daysLeft - 1, 0))
         let left = (available - spent - pace * remainingDays).rounded(2)
+        let money = available - spent
+        if money <= 0 {
+            return Forecast(dailyPace: pace, leftAtPayday: left, shortByDays: nil, alreadyOver: true)
+        }
         var short: Int?
         if left < 0, pace > 0 {
-            let money = available - spent
-            let lastsDays = money <= 0 ? 0 : NSDecimalNumber(decimal: money / pace).intValue
+            let lastsDays = NSDecimalNumber(decimal: money / pace).intValue
             short = max(1, max(daysLeft - 1, 0) - lastsDays)
         }
-        return Forecast(dailyPace: pace, leftAtPayday: left, shortByDays: short)
+        return Forecast(dailyPace: pace, leftAtPayday: left, shortByDays: short, alreadyOver: false)
     }
 
     // MARK: Money leaks

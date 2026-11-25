@@ -57,7 +57,10 @@ struct InsightsView: View {
         let ok = f.leftAtPayday >= 0
         return Card(title: "Will your salary last?", symbol: "calendar.badge.clock") {
             VStack(alignment: .leading, spacing: 6) {
-                if elapsed < 3 {
+                if f.alreadyOver {
+                    Text("Bills and savings already take this cycle's money. Anything you spend now goes over.")
+                        .font(.headline).foregroundStyle(Theme.over)
+                } else if elapsed < 3 {
                     Text("Ask again in a couple of days, once there's some spending to go on.")
                         .foregroundStyle(.secondary)
                 } else {

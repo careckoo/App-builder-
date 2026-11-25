@@ -84,6 +84,22 @@ final class PlanTests: XCTestCase {
         XCTAssertFalse(jameya.isPot(5000))
     }
 
+    func testPayday31DueDay30GivesTwoRoundsInOneCycle() {
+        // Review finding: 30 Apr falls on the end of the 31 Mar–30 Apr cycle (exclusive), so the next
+        // cycle holds two rounds. The app must reserve both, not one.
+        let j = JameyaSchedule(share: 1000, members: 10, myTurn: 4, firstMonth: date(2027, 1, 1), dueDay: 30)
+        let march = PayCycle.current(payday: 31, today: date(2027, 4, 15))
+        XCTAssertEqual(j.rounds(dueFrom: march.start, to: march.end), [])
+        let april = PayCycle.current(payday: 31, today: date(2027, 5, 15))
+        XCTAssertEqual(j.rounds(dueFrom: april.start, to: april.end), [4, 5])
+    }
+
+    func testRoundPaidNeedsADueDateNearby() {
+        XCTAssertEqual(jameya.roundPaid(on: date(2027, 3, 25), candidates: [3, 2]), 3)
+        XCTAssertEqual(jameya.roundPaid(on: date(2027, 3, 2), candidates: [2, 3]), 2)   // late payment of round 2
+        XCTAssertNil(jameya.roundPaid(on: date(2027, 3, 12), candidates: [3]))           // 15 days from 27 Mar
+    }
+
     func testJameyaTurnIsClamped() {
         let j = JameyaSchedule(share: 100, members: 5, myTurn: 9, firstMonth: date(2027, 1, 1), dueDay: 1)
         XCTAssertEqual(j.myTurn, 5)
@@ -104,6 +120,15 @@ final class PlanTests: XCTestCase {
         let f = Insights.forecast(available: 3000, spent: 2000, daysElapsed: 10, daysLeft: 20)
         XCTAssertEqual(f.leftAtPayday, -2800)
         XCTAssertEqual(f.shortByDays, 14)
+    }
+
+    func testForecastAlreadyOver() {
+        let f = Insights.forecast(available: -100, spent: 0, daysElapsed: 5, daysLeft: 10)
+        XCTAssertTrue(f.alreadyOver)
+        XCTAssertNil(f.shortByDays)
+        let g = Insights.forecast(available: 500, spent: 0, daysElapsed: 1, daysLeft: 1)
+        XCTAssertFalse(g.alreadyOver)
+        XCTAssertEqual(g.leftAtPayday, 500)
     }
 
     func testLeaksGroupSmallRepeats() {

@@ -89,6 +89,13 @@ public struct JameyaSchedule: Sendable, Equatable {
         return paidIn(throughRound: r) - (r >= myTurn ? pot : 0)
     }
 
+    /// The round a payment on `date` most likely pays: the earliest round in `candidates` due within
+    /// `window` days of it. Paying a share weeks away from any due date is probably something else.
+    public func roundPaid(on date: Date, candidates: [Int], window: Int = 10, calendar: Calendar = .dubai) -> Int? {
+        let limit = TimeInterval(window * 86_400)
+        return candidates.sorted().first { abs(dueDate(round: $0, calendar: calendar).timeIntervalSince(date)) <= limit }
+    }
+
     /// A bank payment is this jameya's share when it's within 1% (or AED 1) of it.
     public func isShare(_ amountAED: Decimal) -> Bool { Self.close(amountAED, share) }
 

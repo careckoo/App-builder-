@@ -6,6 +6,7 @@ import KhurdaCore
 /// Every transaction, grouped by day, with search. Tap one to change its category.
 struct ActivityView: View {
     @Query(sort: \Transaction.date, order: .reverse) private var transactions: [Transaction]
+    @Query private var unread: [UnreadMessage]
     @State private var search = ""
 
     private var filtered: [Transaction] {
@@ -25,6 +26,14 @@ struct ActivityView: View {
     var body: some View {
         NavigationStack {
             List {
+                if !unread.isEmpty && search.isEmpty {
+                    Section {
+                        NavigationLink { UnreadMessagesView() } label: {
+                            Label("Messages we couldn't read: \(unread.count)", systemImage: "questionmark.bubble.fill")
+                                .foregroundStyle(Theme.carefulText)
+                        }
+                    }
+                }
                 ForEach(days, id: \.0) { day, items in
                     Section {
                         ForEach(items) { tx in
@@ -44,7 +53,7 @@ struct ActivityView: View {
             .themedBackground()
             .navigationTitle("Activity")
             .overlay {
-                if transactions.isEmpty {
+                if transactions.isEmpty && unread.isEmpty {
                     ContentUnavailableView("Nothing yet", systemImage: "tray",
                                            description: Text("Finish the Shortcuts setup and your next card payment will show up here."))
                 }

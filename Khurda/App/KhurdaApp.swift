@@ -57,5 +57,10 @@ struct RootTabView: View {
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }.tag(4)
         }
+        #if DEBUG
+        .sheet(isPresented: .constant(DemoData.showTeach)) {
+            NavigationStack { TeachMessageView(message: DemoData.teachSample, sender: nil) }
+        }
+        #endif
     }
 }

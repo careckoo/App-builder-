@@ -98,9 +98,14 @@ final class Jameya {
     var dueDay: Int = 27
     /// The organiser, for the reminder ("Pay Umm Khalid"). Optional.
     var organiser: String = ""
-    /// Start of the pay cycle in which this cycle's share was paid (matched from the bank or ticked by hand).
-    var paidCycleStart: Date?
+    /// Rounds whose share is paid ("3,4"), ticked by hand or by a matching bank transfer.
+    var paidRoundsRaw: String = ""
+    /// The subset paid by a bank transfer that Khurda matched. Those transfers already count as fixed
+    /// bills; rounds ticked by hand still need their share set aside.
+    var bankPaidRoundsRaw: String = ""
     var receivedPot: Bool = false
+    /// Fingerprint of the credit confirmed as the pot, so un-ticking can put it back as income.
+    var potFingerprint: String?
     var createdAt: Date = Date.now
 
     init(name: String, share: Decimal, members: Int, myTurn: Int, firstMonth: Date, dueDay: Int, organiser: String = "") {
@@ -112,9 +117,29 @@ final class Jameya {
         JameyaSchedule(share: share, members: members, myTurn: myTurn, firstMonth: firstMonth, dueDay: dueDay)
     }
 
-    /// The share is due in this pay cycle (one of its rounds falls between the two paydays).
-    func isDue(in cycle: PayCycle) -> Bool { !schedule.rounds(dueFrom: cycle.start, to: cycle.end).isEmpty }
-    func isPaid(in cycle: PayCycle) -> Bool { paidCycleStart == cycle.start }
+    var paidRounds: Set<Int> {
+        get { Set(paidRoundsRaw.split(separator: ",").compactMap { Int($0) }) }
+        set { paidRoundsRaw = newValue.sorted().map(String.init).joined(separator: ",") }
+    }
+    var bankPaidRounds: Set<Int> {
+        get { Set(bankPaidRoundsRaw.split(separator: ",").compactMap { Int($0) }) }
+        set { bankPaidRoundsRaw = newValue.sorted().map(String.init).joined(separator: ",") }
+    }
+
+    /// Rounds due between the two paydays of `cycle` (a short month can put two in one cycle).
+    func dueRounds(in cycle: PayCycle) -> [Int] { schedule.rounds(dueFrom: cycle.start, to: cycle.end) }
+    func isDue(in cycle: PayCycle) -> Bool { !dueRounds(in: cycle).isEmpty }
+    func isPaid(in cycle: PayCycle) -> Bool { dueRounds(in: cycle).allSatisfy(paidRounds.contains) }
+
+    /// What to set aside this cycle: every round due in it, except those paid by a transfer that
+    /// already counts as a fixed bill. A share ticked by hand stays set aside (it was still paid).
+    func reserve(in cycle: PayCycle) -> Decimal {
+        share * Decimal(dueRounds(in: cycle).filter { !bankPaidRounds.contains($0) }.count)
+    }
+
+    func setPaid(_ round: Int, _ paid: Bool) {
+        if paid { paidRounds.insert(round) } else { paidRounds.remove(round); bankPaidRounds.remove(round) }
+    }
 }
 
 /// Something to save for: a car, Umrah, a wedding, Ramadan and Eid. The monthly amount is set aside
@@ -128,6 +153,10 @@ final class SavingsGoal {
     var symbol: String = "star.fill"
     var targetDate: Date?
     var createdAt: Date = Date.now
+    /// What payday credited to this goal, and for which cycle. That amount is what this cycle sets
+    /// aside; a goal created mid-cycle starts setting aside on the next payday.
+    var lastCredit: Decimal = 0
+    var lastCreditCycleStart: Date?
 
     init(name: String, target: Decimal, monthly: Decimal, symbol: String = "star.fill", targetDate: Date? = nil) {
         self.name = name; self.target = target; self.monthly = monthly; self.symbol = symbol; self.targetDate = targetDate
@@ -137,6 +166,34 @@ final class SavingsGoal {
         target <= 0 ? 0 : min(1, NSDecimalNumber(decimal: saved / target).doubleValue)
     }
     var isReached: Bool { target > 0 && saved >= target }
+
+    func reserve(in cycle: PayCycle) -> Decimal { lastCreditCycleStart == cycle.start ? lastCredit : 0 }
+}
+
+/// A message shape the person taught Khurda (see `MessageTemplate`). Stored as JSON.
+@Model
+final class LearnedTemplate {
+    var templateData: Data = Data()
+    var createdAt: Date = Date.now
+    /// The message it was learned from, shown in Settings so the person knows what it reads.
+    var example: String = ""
+    var timesUsed: Int = 0
+
+    init(template: MessageTemplate, example: String) {
+        templateData = (try? JSONEncoder().encode(template)) ?? Data()
+        self.example = example
+    }
+    var template: MessageTemplate? { try? JSONDecoder().decode(MessageTemplate.self, from: templateData) }
+}
+
+/// A bank message that came in through Shortcuts or Paste but wasn't understood. Never dropped
+/// silently: it waits in "Messages we couldn't read" until the person teaches Khurda or dismisses it.
+@Model
+final class UnreadMessage {
+    var text: String = ""
+    var sender: String?
+    var receivedAt: Date = Date.now
+    init(text: String, sender: String?) { self.text = text; self.sender = sender }
 }
 
 /// When someone moves a merchant to another category, remember it.
@@ -154,7 +211,11 @@ enum AppSettings {
 
     static var payday: Int {
         get { defaults.object(forKey: "payday") as? Int ?? 27 }
-        set { defaults.set(newValue, forKey: "payday") }
+        set {
+            defaults.set(newValue, forKey: "payday")
+            // Moving payday is not a new salary: don't let CycleReset untick bills or credit goals.
+            defaults.set(PayCycle.current(payday: newValue).start, forKey: CycleReset.key)
+        }
     }
     static var monthlyIncome: Decimal {
         get { Decimal(string: defaults.string(forKey: "income") ?? "") ?? 0 }
@@ -176,22 +237,36 @@ enum AppSettings {
 /// Lives here (compiled into both the app and the widget) because the Shortcut, the widget and the
 /// app can each be the first thing to run after payday.
 enum CycleReset {
+    static let key = "lastCycleStart"
+
     @MainActor
     static func runIfNeeded(context: ModelContext, now: Date = .now) {
-        let start = PayCycle.current(payday: AppSettings.payday, today: now).start
-        let key = "lastCycleStart"
+        let current = PayCycle.current(payday: AppSettings.payday, today: now)
         let last = AppSettings.defaults.object(forKey: key) as? Date
-        guard last != start else { return }
+        guard last != current.start else { return }
         (try? context.fetch(FetchDescriptor<Obligation>()))?.forEach { $0.isPaidThisCycle = false }
-        // The monthly amount for each goal was set aside from this salary: count it as saved.
-        // Only when a cycle was seen before, so the first launch doesn't credit a month nobody saved.
-        if last != nil {
+        // Each payday sets aside each goal's monthly amount. Count every payday since the app last
+        // ran (not just one), and only when a cycle was seen before, so the first launch credits nothing.
+        if let last, last < current.start {
+            var paydays = 0
+            var c = PayCycle.current(payday: AppSettings.payday, today: last)
+            while c.end <= current.start, paydays < 24 {
+                paydays += 1
+                c = PayCycle.current(payday: AppSettings.payday, today: c.end)
+            }
             (try? context.fetch(FetchDescriptor<SavingsGoal>()))?.forEach { g in
-                if !g.isReached { g.saved = min(g.target, g.saved + g.monthly) }
+                var credit: Decimal = 0
+                for _ in 0..<max(paydays, 1) {
+                    credit = min(g.monthly, max(0, g.target - g.saved))
+                    g.saved += credit
+                }
+                // This cycle sets aside what this payday credited (0 once the goal is reached).
+                g.lastCredit = credit
+                g.lastCreditCycleStart = current.start
             }
         }
         try? context.save()
-        AppSettings.defaults.set(start, forKey: key)
+        AppSettings.defaults.set(current.start, forKey: key)
     }
 }
 
@@ -199,7 +274,7 @@ enum CycleReset {
 /// CloudKit sync can be switched on later with `cloudKitDatabase: .private(...)`.
 enum Store {
     static let schema = Schema([Transaction.self, Budget.self, Obligation.self, MerchantRule.self,
-                                Jameya.self, SavingsGoal.self])
+                                Jameya.self, SavingsGoal.self, LearnedTemplate.self, UnreadMessage.self])
 
     static let container: ModelContainer = {
         // Without the App Group entitlement (a free Apple ID, or an unsigned build) SwiftData traps

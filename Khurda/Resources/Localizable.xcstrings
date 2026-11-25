@@ -1,6 +1,16 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%@ %@": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@"
+          }
+        }
+      }
+    },
     "%@ %@%@. Left today: AED %@": {
       "localizations": {
         "ar": {
@@ -27,6 +37,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%1$@ بالشهر · %2$@"
+          }
+        }
+      }
+    },
+    "%@ of %@": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ من %2$@"
           }
         }
       }
@@ -130,7 +150,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$lld من %#@n@ هالدورة ضمن مصروف اليوم"
+            "value": "التزمت بمصروف اليوم %1$lld من %#@n@"
           },
           "substitutions": {
             "n": {
@@ -197,6 +217,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "+%1$@ %2$@%3$@"
+          }
+        }
+      }
+    },
+    "1. Tap the amount": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1. اضغط على المبلغ"
+          }
+        }
+      }
+    },
+    "2. Tap the first and last word of the shop name": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2. اضغط على أول وآخر كلمة من اسم المحل"
+          }
+        }
+      }
+    },
+    "3. Check and save": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3. تأكد واحفظ"
+          }
+        }
+      }
+    },
+    "A bank transfer of %@ near the due date ticks its month by itself. Paid in cash? Tick it here.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أي تحويل بنكي بقيمة %@ قريب من موعد الدفع يعلّم الشهر بروحه. دفعت كاش؟ علّمه من هني."
           }
         }
       }
@@ -286,7 +346,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "حط في الهدف"
+            "value": "زيد على الهدف"
           }
         }
       }
@@ -307,6 +367,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "يضيف الشراء بـ Apple Pay من أتمتة «المعاملة» في المحفظة إلى خردة."
+          }
+        }
+      }
+    },
+    "All read": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كل شي انقرا"
           }
         }
       }
@@ -336,7 +406,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "اللي ادخرته للحين (درهم)"
+            "value": "اللي جمّعته للحين (درهم)"
           }
         }
       }
@@ -537,6 +607,16 @@
         }
       }
     },
+    "Bank messages Khurda couldn't read. Tap one and show Khurda the amount once; it reads every message like it from then on.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رسايل البنك اللي ما قدر خردة يقراها. اضغط على وحدة وورّه المبلغ مرة وحدة، وبعدها يقرا أي رسالة مثلها بروحه."
+          }
+        }
+      }
+    },
     "Bank messages appear here by themselves.": {
       "localizations": {
         "ar": {
@@ -563,6 +643,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "البنوك قاعدة تنقل التنبيهات لتطبيقاتها، والآيفون ما يسمح لتطبيق ثاني يقراها. فعّل وحدة أو أكثر من هذي الطرق بدالها."
+          }
+        }
+      }
+    },
+    "Bills and savings already take this cycle's money. Anything you spend now goes over.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الفواتير والادخار ماخذين فلوس هالدورة كلها. أي شي تصرفه الحين بيكون زيادة."
           }
         }
       }
@@ -612,7 +702,17 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "تم تسجيل سداد البطاقة بمبلغ %1$@ %2$@. ما يغيّر مبلغ اليوم."
+            "value": "تم تسجيل سداد البطاقة بمبلغ %1$@ %2$@. ما يغيّر مصروف اليوم."
+          }
+        }
+      }
+    },
+    "Cash withdrawal": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سحب كاش"
           }
         }
       }
@@ -662,7 +762,17 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "الجاي قريب"
+            "value": "قريباً"
+          }
+        }
+      }
+    },
+    "Couldn't read": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ما انقرت"
           }
         }
       }
@@ -782,7 +892,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "موعدها بعد يومين: %@"
+            "value": "باقي يومين: %@"
           }
         }
       }
@@ -802,7 +912,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "مستحقة هالدورة"
+            "value": "مستحق هالشهر"
           }
         }
       }
@@ -812,7 +922,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "موعدها اليوم: %@"
+            "value": "اليوم: %@"
           }
         }
       }
@@ -877,6 +987,16 @@
         }
       }
     },
+    "Every bank message so far was understood.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كل رسايل البنك لين الحين انقرت صح."
+          }
+        }
+      }
+    },
     "Export to CSV": {
       "localizations": {
         "ar": {
@@ -912,7 +1032,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "أول شهر"
+            "value": "تبدأ من شهر"
           }
         }
       }
@@ -957,6 +1077,16 @@
         }
       }
     },
+    "From your next payday, the monthly amount comes off your salary before today's amount is worked out.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "من الراتب الجاي، المبلغ الشهري ينحجز من راتبك قبل ما ينحسب مصروف اليوم."
+          }
+        }
+      }
+    },
     "Go easy for the rest of today": {
       "localizations": {
         "ar": {
@@ -972,7 +1102,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "عندك سهمين؟ احسبهم عضوين واختار أول دور لك."
+            "value": "عندك سهمين؟ عدّهم سهمين واختار أول دور لك."
           }
         }
       }
@@ -1062,7 +1192,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "في الجمعية، الكل يدفع نفس السهم كل شهر وواحد ياخذ المبلغ كامل. خردة يحجز سهمك من مصروفك ويبلغك لما يجي دورك."
+            "value": "في الجمعية، الكل يدفع نفس السهم كل شهر، وكل شهر واحد ياخذ الجمعية كاملة. خردة يحجز سهمك من مصروفك وينبّهك لما يجي دورك."
           }
         }
       }
@@ -1092,7 +1222,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "سهمها ما بيتحجز بعد الحين، وحركاتك تبقى مثل ما هي."
+            "value": "ما بينحجز سهمها بعد اليوم، وحركاتك تبقى مثل ما هي."
           }
         }
       }
@@ -1127,12 +1257,52 @@
         }
       }
     },
+    "Khurda couldn't read this": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "خردة ما قدر يقرا هالرسالة"
+          }
+        }
+      }
+    },
+    "Khurda couldn't read this one yet. It's waiting in Activity: tap it once to teach Khurda.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "خردة ما قدر يقرا هالرسالة للحين. تلقاها في الحركات: اضغط عليها مرة وعلّمه."
+          }
+        }
+      }
+    },
     "Khurda reads those messages and keeps your budget for you. No typing numbers, no bank passwords, and nothing leaves your iPhone.": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
             "value": "خردة يقرأ هذه الرسائل ويرتّب ميزانيتك عنك. بدون إدخال أرقام، بدون كلمات مرور البنك، وكل شيء يبقى على جوالك."
+          }
+        }
+      }
+    },
+    "Khurda will read": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "خردة بيقرا"
+          }
+        }
+      }
+    },
+    "Kind": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "النوع"
           }
         }
       }
@@ -1152,7 +1322,17 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "آخر ٧ أيام"
+            "value": "آخر 7 أيام"
+          }
+        }
+      }
+    },
+    "Learned messages": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رسايل تعلّمها خردة"
           }
         }
       }
@@ -1227,6 +1407,16 @@
         }
       }
     },
+    "Mark as paid": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "علّمه مدفوع"
+          }
+        }
+      }
+    },
     "Match iPhone": {
       "localizations": {
         "ar": {
@@ -1242,7 +1432,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "عدد الأعضاء: %lld"
+            "value": "عدد الأسهم: %lld"
           }
         }
       }
@@ -1263,6 +1453,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "الرسالة"
+          }
+        }
+      }
+    },
+    "Messages we couldn't read": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رسايل ما قدرنا نقراها"
+          }
+        }
+      }
+    },
+    "Messages we couldn't read: %lld": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رسايل ما قدرنا نقراها: %lld"
+          }
+        }
+      }
+    },
+    "Money in": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فلوس داخلة"
           }
         }
       }
@@ -1312,7 +1532,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "تم نقل %1$@ %2$@ بين حساباتك. ما يغيّر مبلغ اليوم."
+            "value": "تم نقل %1$@ %2$@ بين حساباتك. ما يغيّر مصروف اليوم."
           }
         }
       }
@@ -1437,6 +1657,16 @@
         }
       }
     },
+    "Nothing learned yet": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ما تعلّم شي للحين"
+          }
+        }
+      }
+    },
     "Nothing spent yet this cycle.": {
       "localizations": {
         "ar": {
@@ -1492,7 +1722,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "المسؤول عن الجمعية"
+            "value": "راعي الجمعية"
           }
         }
       }
@@ -1502,7 +1732,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "المسؤول عن الجمعية (اختياري)"
+            "value": "راعي الجمعية (اختياري)"
           }
         }
       }
@@ -1522,7 +1752,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "تجاوزت مبلغ اليوم — بكرة يتعدّل تلقائياً"
+            "value": "تجاوزت مصروف اليوم — بكرة يتعدّل تلقائياً"
           }
         }
       }
@@ -1532,7 +1762,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "مدفوعة"
+            "value": "مدفوع"
           }
         }
       }
@@ -1552,7 +1782,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "تندفع يوم"
+            "value": "يوم الدفع"
           }
         }
       }
@@ -1587,6 +1817,16 @@
         }
       }
     },
+    "Payment": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "دفعة"
+          }
+        }
+      }
+    },
     "Plan": {
       "localizations": {
         "ar": {
@@ -1602,7 +1842,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "مبلغ الجمعية"
+            "value": "قيمة الجمعية"
           }
         }
       }
@@ -1622,7 +1862,17 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "وصلت"
+            "value": "وصلت للهدف"
+          }
+        }
+      }
+    },
+    "Read %lld times since": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "قراها %lld مرة من بعدها"
           }
         }
       }
@@ -1633,6 +1883,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "يقرأ رسالة البنك أو إيميل التنبيه ويضيف العملية إلى خردة."
+          }
+        }
+      }
+    },
+    "Refund": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استرجاع"
           }
         }
       }
@@ -1802,7 +2062,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "تحجز كل شهر (درهم)"
+            "value": "كم تحجز كل شهر (درهم)"
           }
         }
       }
@@ -1817,12 +2077,32 @@
         }
       }
     },
+    "Share %@": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "السهم %@"
+          }
+        }
+      }
+    },
+    "Show Khurda the amount and the shop once. Messages like it are read by themselves after that.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ورّ خردة المبلغ والمحل مرة وحدة، وبعدها الرسايل اللي مثلها تنقرا بروحها."
+          }
+        }
+      }
+    },
     "Small things that add up": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "أشياء صغيرة تتجمّع"
+            "value": "مصاريف صغيرة تتراكم"
           }
         }
       }
@@ -1843,6 +2123,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "تقويم المصاريف"
+          }
+        }
+      }
+    },
+    "Start again": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "من جديد"
           }
         }
       }
@@ -1887,12 +2177,52 @@
         }
       }
     },
+    "Tap a word again to undo. Nothing leaves your iPhone.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اضغط على الكلمة مرة ثانية عشان تلغيها. ولا شي يطلع من جوالك."
+          }
+        }
+      }
+    },
     "Target (AED)": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
             "value": "الهدف (درهم)"
+          }
+        }
+      }
+    },
+    "Teach Khurda": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "علّم خردة"
+          }
+        }
+      }
+    },
+    "Teach Khurda this message": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "علّم خردة هالرسالة"
+          }
+        }
+      }
+    },
+    "That doesn't look like an amount. Tap the number with the money in it.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هذا ما يبين إنه مبلغ. اضغط على الرقم اللي فيه الفلوس."
           }
         }
       }
@@ -1922,7 +2252,17 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "السهم ينحجز من مصروفك كل شهر مثل الفاتورة. ولما تستلم الجمعية، ما بتنحسب فلوس للصرف."
+            "value": "السهم ينحجز من مصروفك كل شهر مثل الفاتورة. ولما تستلم الجمعية، ما تدخل في مصروف اليوم."
+          }
+        }
+      }
+    },
+    "There's no shop name": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ما فيها اسم محل"
           }
         }
       }
@@ -2027,6 +2367,16 @@
         }
       }
     },
+    "Transfer out": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحويل لبرّا"
+          }
+        }
+      }
+    },
     "Travel": {
       "localizations": {
         "ar": {
@@ -2067,12 +2417,42 @@
         }
       }
     },
+    "We'll treat the %@ that came in on %@ as your pot, so it doesn't count as spending money.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بنعتبر الـ%1$@ اللي وصلت يوم %2$@ هي جمعيتك، فما بتنحسب فلوس للصرف."
+          }
+        }
+      }
+    },
     "Wedding": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
             "value": "عرس"
+          }
+        }
+      }
+    },
+    "What is it?": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "شو نوعها؟"
+          }
+        }
+      }
+    },
+    "When a bank message isn't understood, you can teach Khurda from Paste or from Activity.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لما رسالة بنك ما تنقرا، تقدر تعلّم خردة من «الصق رسالة» أو من الحركات."
           }
         }
       }
@@ -2123,6 +2503,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "بيكفّيك الراتب؟"
+          }
+        }
+      }
+    },
+    "Work jameya": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جمعية الدوام"
           }
         }
       }
@@ -2223,7 +2613,7 @@
                   "zero": {
                     "stringUnit": {
                       "state": "translated",
-                      "value": "ولا سهم"
+                      "value": "%arg"
                     }
                   }
                 }
@@ -2278,7 +2668,17 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "مبلغك"
+            "value": "جمعيتك"
+          }
+        }
+      }
+    },
+    "Your pot is your own money coming back (or paid in advance), so it doesn't go into today's amount.": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جمعيتك هي فلوسك ترجع لك (أو مقدّمة لك)، فما تدخل في مصروف اليوم."
           }
         }
       }
@@ -2375,6 +2775,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "دورك: %lld"
+          }
+        }
+      }
+    },
+    "Your turn: %lld · %@": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "دورك: %1$lld · %2$@"
           }
         }
       }

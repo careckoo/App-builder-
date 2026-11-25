@@ -25,6 +25,8 @@ enum Theme {
     static let onTrack = accent
     static let careful = dynamic(light: 0xF5A524, dark: 0xFFB84D)    // warm amber
     static let over = dynamic(light: 0xF2545B, dark: 0xFF7A80)       // soft coral: "adjust", not "fail"
+    /// Amber for small text on the cream background: the ring amber is too light to read (about 2:1).
+    static let carefulText = dynamic(light: 0xA86400, dark: 0xFFB84D)
 
     static let textPrimary = dynamic(light: 0x1E2A36, dark: 0xEEF2F6)
     static let textSecondary = dynamic(light: 0x6B7785, dark: 0x9AA6B2)

@@ -197,6 +197,8 @@ struct SettingsView: View {
                 }
                 Section("Automatic tracking") {
                     NavigationLink("Automatic tracking setup") { ShortcutGuideView(banks: BankDirectory.all) {} }
+                    NavigationLink("Messages we couldn't read") { UnreadMessagesView() }
+                    NavigationLink("Learned messages") { LearnedTemplatesView() }
                 }
                 Section {
                     Picker("Appearance", selection: $appearance) {

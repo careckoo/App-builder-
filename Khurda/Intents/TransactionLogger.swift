@@ -13,6 +13,8 @@ struct TransactionLogger {
         case merged(Transaction)
         case duplicate
         case notATransaction
+        /// Not understood but kept in "Messages we couldn't read", for the person to teach Khurda.
+        case keptToTeach
     }
 
     let context: ModelContext
@@ -26,8 +28,49 @@ struct TransactionLogger {
         // Same reading as the "Paste a message" preview: HTML and footer removed, an OTP subject skips
         // the email, and a subject like "Debit card purchase" helps when the body has no verb.
         let read = MessageReader.read(message, sender: sender, subject: subject)
-        guard let parsed = read.parsed else { return .notATransaction }
-        return try save(parsed, via: read.isEmail ? .email : .sms, original: read.text)
+        if let parsed = read.parsed ?? learned(read.text, sender: sender) {
+            return try save(parsed, via: read.isEmail ? .email : .sms, original: read.text)
+        }
+        if read.isWorthTeaching {
+            try keepUnread(read.text, sender: sender)
+            return .keptToTeach
+        }
+        return .notATransaction
+    }
+
+    /// Reads with a shape the person taught Khurda, newest first.
+    func learned(_ text: String, sender: String?) -> ParsedTransaction? {
+        let all = (try? context.fetch(FetchDescriptor<LearnedTemplate>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? []
+        for t in all {
+            if let parsed = t.template?.read(text, sender: sender) { t.timesUsed += 1; return parsed }
+        }
+        return nil
+    }
+
+    private func keepUnread(_ text: String, sender: String?) throws {
+        let existing = try context.fetch(FetchDescriptor<UnreadMessage>(predicate: #Predicate { $0.text == text }))
+        guard existing.isEmpty else { return }
+        context.insert(UnreadMessage(text: text, sender: sender))
+        try context.save()
+    }
+
+    /// The person tapped the amount (and shop) in a message: learn its shape, then log it.
+    func teach(_ template: MessageTemplate, message: String, sender: String?) throws -> Outcome {
+        context.insert(LearnedTemplate(template: template, example: message))
+        // Every waiting message of the same shape is read now too.
+        let waiting = try context.fetch(FetchDescriptor<UnreadMessage>())
+        var outcome: Outcome = .notATransaction
+        for w in waiting {
+            guard let parsed = template.read(w.text, sender: w.sender, date: w.receivedAt) else { continue }
+            let result = try save(parsed, via: .sms, original: w.text)
+            if w.text == message { outcome = result }
+            context.delete(w)
+        }
+        if case .notATransaction = outcome, let parsed = template.read(message, sender: sender) {
+            outcome = try save(parsed, via: .sms, original: message)
+        }
+        try context.save()
+        return outcome
     }
 
     /// An Apple Pay purchase from the Wallet "Transaction" automation. `amountText` is whatever
@@ -152,26 +195,20 @@ struct TransactionLogger {
         if tx.source == .wallet && source != .wallet { tx.fingerprint = fingerprint }
     }
 
-    /// A transfer out of exactly the share pays this cycle's jameya; a credit the size of the pot in
-    /// your month is the pot. The pot is your own money coming back (or an advance you repay), so it
-    /// doesn't inflate today's amount: it's marked as a move between your accounts.
+    /// A transfer out of exactly the share, within 10 days of an unpaid round's due date, pays that
+    /// round. The pot is never matched automatically (a salary can be the same size): the person
+    /// confirms it on the jameya screen.
     private func matchJameya(_ tx: Transaction) throws {
-        let cycle = PayCycle.current(payday: AppSettings.payday)
-        guard tx.date >= cycle.start else { return }
-        let groups = try context.fetch(FetchDescriptor<Jameya>())
-        if tx.isExpense, tx.kind != .purchase || tx.merchant.isEmpty,
-           let j = groups.first(where: { $0.isDue(in: cycle) && !$0.isPaid(in: cycle) && $0.schedule.isShare(tx.amountAED) }) {
-            j.paidCycleStart = cycle.start
+        guard tx.isExpense, tx.kind != .purchase || tx.merchant.isEmpty else { return }
+        for j in try context.fetch(FetchDescriptor<Jameya>()) where j.schedule.isShare(tx.amountAED) {
+            let unpaid = (1...j.schedule.members).filter { !j.paidRounds.contains($0) }
+            guard let round = j.schedule.roundPaid(on: tx.date, candidates: unpaid) else { continue }
+            j.paidRounds.insert(round)
+            j.bankPaidRounds.insert(round)
             tx.isFixedObligation = true
             tx.category = .transfer
             if tx.note.isEmpty { tx.note = j.name }
-        } else if tx.kind == .income,
-                  let j = groups.first(where: { !$0.receivedPot && $0.schedule.isPot(tx.amountAED)
-                                                 && abs($0.schedule.myPayoutDate.timeIntervalSince(tx.date)) < 20 * 86_400 }) {
-            j.receivedPot = true
-            tx.kind = .ownTransfer
-            tx.category = .transfer
-            if tx.note.isEmpty { tx.note = j.name }
+            return
         }
     }
 
@@ -250,14 +287,12 @@ struct SafeToSpendCalculator {
         let obligations = try context.fetch(FetchDescriptor<Obligation>())
         let fixedPaid = txs.filter { $0.isFixedObligation }.reduce(Decimal(0)) { $0 + $1.amountAED }
         let fixedUnpaid = obligations.filter { !$0.isPaidThisCycle }.reduce(Decimal(0)) { $0 + $1.amount }
-        // A jameya share due this cycle and not paid yet is set aside like a bill. A paid one is
-        // already in `fixedPaid` (its transfer was marked as a fixed obligation).
+        // Jameya shares due this cycle are set aside like bills, except rounds paid by a matched
+        // transfer, which are already in `fixedPaid`.
         let jameyaUnpaid = try context.fetch(FetchDescriptor<Jameya>())
-            .filter { $0.isDue(in: cycle) && !$0.isPaid(in: cycle) }
-            .reduce(Decimal(0)) { $0 + $1.share }
+            .reduce(Decimal(0)) { $0 + $1.reserve(in: cycle) }
         let goals = try context.fetch(FetchDescriptor<SavingsGoal>())
-            .filter { !$0.isReached }
-            .reduce(Decimal(0)) { $0 + $1.monthly }
+            .reduce(Decimal(0)) { $0 + $1.reserve(in: cycle) }
 
         return Numbers(cycle: cycle, income: income, fixed: fixedPaid + fixedUnpaid + jameyaUnpaid,
                        savings: AppSettings.savingsGoal + goals,

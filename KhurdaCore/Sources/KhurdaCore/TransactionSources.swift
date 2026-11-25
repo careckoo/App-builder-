@@ -211,6 +211,13 @@ public enum MessageReader {
         /// The cleaned text (HTML and footer removed for email) that was parsed.
         public let text: String
         public let isEmail: Bool
+
+        /// Not understood, but it isn't an OTP, a promo or a declined payment and it has a number in
+        /// it: worth keeping in "Messages we couldn't read" so the person can teach Khurda.
+        public var isWorthTeaching: Bool {
+            parsed == nil && !ignored && !BankMessageParser.isIgnorable(text) && text.contains(where: \.isNumber)
+        }
+        var ignored = false
     }
 
     public static func read(_ message: String, sender: String?, subject: String? = nil, receivedAt: Date = .now) -> Result {
@@ -218,7 +225,9 @@ public enum MessageReader {
         let text = isEmail ? MessageText.emailBody(message) : MessageText.stripHTML(message)
         let subject = subject?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         // "Your one-time password" in the subject: skip, even if the body reads like a purchase.
-        if !subject.isEmpty, BankMessageParser.isIgnorable(subject) { return Result(parsed: nil, text: text, isEmail: isEmail) }
+        if !subject.isEmpty, BankMessageParser.isIgnorable(subject) {
+            return Result(parsed: nil, text: text, isEmail: isEmail, ignored: true)
+        }
         let parser = BankMessageParser()
         var parsed = parser.parse(text, sender: sender, receivedAt: receivedAt)
         // Some emails keep the verb only in the subject ("Debit card purchase") and list the details below.

@@ -13,8 +13,9 @@ struct GoalRow: View {
                     Label("Reached", systemImage: "checkmark.seal.fill").font(.caption.weight(.semibold))
                         .foregroundStyle(Theme.relaxed)
                 } else {
-                    Text("\(Theme.aed(goal.saved)) / \(Theme.aed(goal.target))")
+                    Text("\(goal.saved.formatted(.number.precision(.fractionLength(0)))) of \(Theme.aed(goal.target))")
                         .font(.callout).monospacedDigit().foregroundStyle(.secondary)
+                        .lineLimit(1).minimumScaleFactor(0.8)
                 }
             }
             ProgressView(value: goal.progress).tint(goal.isReached ? Theme.relaxed : Theme.accent)
@@ -94,7 +95,7 @@ struct GoalEditor: View {
                     TextField("Set aside each month (AED)", value: $monthly, format: .number).keyboardType(.decimalPad)
                     TextField("Already saved (AED)", value: $saved, format: .number).keyboardType(.decimalPad)
                 } footer: {
-                    Text("The monthly amount comes off your salary on payday, before today's amount is worked out.")
+                    Text("From your next payday, the monthly amount comes off your salary before today's amount is worked out.")
                 }
             }
             .navigationTitle(goal == nil ? "New goal" : "Edit goal")

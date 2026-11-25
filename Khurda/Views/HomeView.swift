@@ -153,8 +153,13 @@ struct PasteMessageView: View {
     @State private var text = ""
     @State private var result: String?
 
-    /// Exactly what Save will log: the same HTML/email cleaning and OTP checks as the Shortcuts action.
-    private var preview: ParsedTransaction? { MessageReader.read(text, sender: nil).parsed }
+    /// Exactly what Save will log: the same HTML/email cleaning and OTP checks as the Shortcuts action,
+    /// then any message shape the person taught Khurda.
+    @MainActor
+    private var preview: ParsedTransaction? {
+        let read = MessageReader.read(text, sender: nil)
+        return read.parsed ?? TransactionLogger(context: context).learned(read.text, sender: nil)
+    }
 
     var body: some View {
         NavigationStack {
@@ -177,7 +182,17 @@ struct PasteMessageView: View {
                         LabeledContent("Card", value: preview.cardLast4.map { "•••• \($0)" } ?? "—")
                     }
                 } else if !text.isEmpty {
-                    Text("This doesn't look like a transaction.").foregroundStyle(.secondary)
+                    Section {
+                        NavigationLink {
+                            TeachMessageView(message: MessageReader.read(text, sender: nil).text, sender: nil) { dismiss() }
+                        } label: {
+                            Label("Teach Khurda this message", systemImage: "hand.tap")
+                        }
+                    } header: {
+                        Text("Khurda couldn't read this")
+                    } footer: {
+                        Text("Show Khurda the amount and the shop once. Messages like it are read by themselves after that.")
+                    }
                 }
             }
             .navigationTitle("Paste a message")

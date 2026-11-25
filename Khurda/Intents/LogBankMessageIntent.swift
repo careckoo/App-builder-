@@ -99,6 +99,8 @@ enum LoggedDialog {
         case .notATransaction:
             // OTPs, promos and declined payments end up here on purpose.
             return "Not a transaction, skipped"
+        case .keptToTeach:
+            return "Khurda couldn't read this one yet. It's waiting in Activity: tap it once to teach Khurda."
         }
     }
 }

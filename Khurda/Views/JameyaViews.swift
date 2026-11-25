@@ -13,7 +13,7 @@ struct JameyaRow: View {
             HStack {
                 Label(jameya.name, systemImage: "person.3.fill").font(.body.weight(.semibold))
                 Spacer()
-                Text(Theme.aed(jameya.share)).monospacedDigit().foregroundStyle(.secondary)
+                Text("Share \(Theme.aed(jameya.share))").font(.callout).monospacedDigit().foregroundStyle(.secondary)
             }
             JameyaTurnsBar(schedule: schedule)
             HStack {
@@ -23,7 +23,7 @@ struct JameyaRow: View {
                     Label(jameya.isPaid(in: cycle) ? "Paid" : "Due this cycle",
                           systemImage: jameya.isPaid(in: cycle) ? "checkmark.circle.fill" : "clock")
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(jameya.isPaid(in: cycle) ? Theme.relaxed : Theme.careful)
+                        .foregroundStyle(jameya.isPaid(in: cycle) ? Theme.relaxed : Theme.carefulText)
                 }
             }
         }
@@ -105,37 +105,48 @@ struct JameyaDetailView: View {
                 .listRowInsets(EdgeInsets())
             }
 
-            if jameya.isDue(in: cycle) {
-                Section {
-                    Toggle("This cycle's share is paid", isOn: Binding(
-                        get: { jameya.isPaid(in: cycle) },
-                        set: { jameya.paidCycleStart = $0 ? cycle.start : nil; save() }))
-                } footer: {
-                    Text("Ticked by itself when a bank transfer of \(Theme.aed(jameya.share)) arrives. Until then it's set aside from your daily amount.")
-                }
-            }
             if schedule.phase(on: .now) == .yourTurn || jameya.receivedPot {
                 Section {
                     Toggle("I've received the pot", isOn: Binding(get: { jameya.receivedPot },
-                                                                 set: { jameya.receivedPot = $0; save() }))
+                                                                 set: { setPotReceived($0) }))
+                } footer: {
+                    if let tx = potCandidate, !jameya.receivedPot {
+                        Text("We'll treat the \(Theme.aed(tx.amountAED)) that came in on \(tx.date.formatted(.dateTime.day().month())) as your pot, so it doesn't count as spending money.")
+                    } else {
+                        Text("Your pot is your own money coming back (or paid in advance), so it doesn't go into today's amount.")
+                    }
                 }
             }
 
-            Section("Months") {
+            Section {
                 ForEach(1...schedule.members, id: \.self) { r in
+                    let due = schedule.dueDate(round: r)
+                    let started = due <= Calendar.dubai.date(byAdding: .day, value: 10, to: .now)!
                     HStack {
-                        Text("\(r)").font(.callout.monospacedDigit()).frame(width: 28)
-                            .foregroundStyle(.secondary)
-                        Text(schedule.dueDate(round: r).formatted(.dateTime.day().month(.wide).year()))
+                        Text("\(r)").font(.callout.monospacedDigit()).frame(width: 28).foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(due.formatted(.dateTime.day().month(.wide).year()))
+                            if r == schedule.myTurn {
+                                Label("Your turn", systemImage: "star.fill")
+                                    .font(.caption.weight(.semibold)).foregroundStyle(Theme.accent)
+                            }
+                        }
                         Spacer()
-                        if r == schedule.myTurn {
-                            Label("Your turn", systemImage: "star.fill").labelStyle(.titleAndIcon)
-                                .font(.caption.weight(.semibold)).foregroundStyle(Theme.accent)
-                        } else if schedule.dueDate(round: r) < Calendar.dubai.startOfDay(for: .now) {
-                            Image(systemName: "checkmark").foregroundStyle(.tertiary)
+                        if started {
+                            Button {
+                                jameya.setPaid(r, !jameya.paidRounds.contains(r)); save()
+                            } label: {
+                                Image(systemName: jameya.paidRounds.contains(r) ? "checkmark.circle.fill" : "circle")
+                                    .font(.title3)
+                                    .foregroundStyle(jameya.paidRounds.contains(r) ? Theme.relaxed : Theme.textSecondary)
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel(Text(jameya.paidRounds.contains(r) ? "Paid" : "Mark as paid"))
                         }
                     }
                 }
+            } header: { Text("Months") } footer: {
+                Text("A bank transfer of \(Theme.aed(jameya.share)) near the due date ticks its month by itself. Paid in cash? Tick it here.")
             }
 
             if !jameya.organiser.isEmpty {
@@ -164,6 +175,36 @@ struct JameyaDetailView: View {
         try? context.save()
         Reminders.reschedule(context: context)
     }
+
+    /// The credit most likely to be the pot: the right size, within 20 days of your month.
+    private var potCandidate: Transaction? {
+        let s = schedule
+        let lo = Calendar.dubai.date(byAdding: .day, value: -20, to: s.myPayoutDate)!
+        let hi = Calendar.dubai.date(byAdding: .day, value: 20, to: s.myPayoutDate)!
+        let txs = (try? context.fetch(FetchDescriptor<Transaction>(predicate: #Predicate { $0.date >= lo && $0.date <= hi }))) ?? []
+        return txs.filter { $0.kind == .income && s.isPot($0.amountAED) }
+            .min { abs($0.date.timeIntervalSince(s.myPayoutDate)) < abs($1.date.timeIntervalSince(s.myPayoutDate)) }
+    }
+
+    /// Confirmed by the person: the matching credit becomes a move between their own money, so it
+    /// doesn't inflate today's amount. Un-ticking puts it back as income.
+    @MainActor
+    private func setPotReceived(_ received: Bool) {
+        if received {
+            if let tx = potCandidate {
+                tx.kind = .ownTransfer
+                tx.category = .transfer
+                if tx.note.isEmpty { tx.note = jameya.name }
+                jameya.potFingerprint = tx.fingerprint
+            }
+        } else if let fp = jameya.potFingerprint {
+            let txs = (try? context.fetch(FetchDescriptor<Transaction>(predicate: #Predicate { $0.fingerprint == fp }))) ?? []
+            for tx in txs where tx.kind == .ownTransfer { tx.kind = .income; tx.category = .income }
+            jameya.potFingerprint = nil
+        }
+        jameya.receivedPot = received
+        save()
+    }
 }
 
 /// Add or edit a jameya. Five questions, with the pot and your month shown live.
@@ -175,7 +216,7 @@ struct JameyaEditor: View {
     @State private var share: Decimal = 1000
     @State private var members = 10
     @State private var myTurn = 1
-    @State private var firstMonth = Date.now
+    @State private var firstMonth = JameyaEditor.monthStart(.now)
     @State private var dueDay = AppSettings.payday
     @State private var organiser = ""
     @State private var loaded = false
@@ -192,12 +233,16 @@ struct JameyaEditor: View {
                     TextField("Monthly share (AED)", value: $share, format: .number).keyboardType(.decimalPad)
                     Stepper("Members: \(members)", value: $members, in: 2...36)
                         .onChange(of: members) { myTurn = min(myTurn, members) }
-                    Stepper("Your turn: \(myTurn)", value: $myTurn, in: 1...members)
+                    Stepper(value: $myTurn, in: 1...members) {
+                        Text("Your turn: \(myTurn) · \(preview.myPayoutDate.formatted(.dateTime.month(.wide)))")
+                    }
                 } footer: {
                     Text("Holding two shares? Count them as two members and pick your first turn.")
                 }
                 Section {
-                    DatePicker("First month", selection: $firstMonth, displayedComponents: .date)
+                    Picker("First month", selection: $firstMonth) {
+                        ForEach(monthChoices, id: \.self) { Text($0.formatted(.dateTime.month(.wide).year())).tag($0) }
+                    }
                     Picker("Paid on day", selection: $dueDay) { ForEach(1...31, id: \.self) { Text("\($0)").tag($0) } }
                     TextField("Organiser (optional)", text: $organiser)
                 }
@@ -222,11 +267,23 @@ struct JameyaEditor: View {
         }
     }
 
+    /// From 3 years back (a jameya already running) to a year ahead, as the 1st of each month.
+    private var monthChoices: [Date] {
+        let now = Self.monthStart(.now)
+        var list = (-36...12).map { Calendar.dubai.date(byAdding: .month, value: $0, to: now)! }
+        if !list.contains(firstMonth) { list.append(firstMonth); list.sort() }
+        return list
+    }
+
+    static func monthStart(_ date: Date) -> Date {
+        Calendar.dubai.date(from: Calendar.dubai.dateComponents([.year, .month], from: date))!
+    }
+
     private func load() {
         guard !loaded, let j = jameya else { return }
         loaded = true
         name = j.name; share = j.share; members = j.members; myTurn = j.myTurn
-        firstMonth = j.firstMonth; dueDay = j.dueDay; organiser = j.organiser
+        firstMonth = Self.monthStart(j.firstMonth); dueDay = j.dueDay; organiser = j.organiser
     }
 
     @MainActor

@@ -36,19 +36,20 @@ enum Reminders {
         let horizon = cal.date(byAdding: .day, value: 40, to: now)!
         let today = cal.startOfDay(for: now)
 
-        for bill in (try? context.fetch(FetchDescriptor<Obligation>())) ?? [] where !bill.isPaidThisCycle {
-            if let d = nextDate(day: bill.dueDay, after: today, calendar: cal), d <= horizon {
-                items.append(Due(id: "bill.\(bill.persistentModelID.hashValue)", title: bill.title, amount: bill.amount, date: d))
+        let cycle = PayCycle.current(payday: AppSettings.payday, today: now)
+        for (i, bill) in ((try? context.fetch(FetchDescriptor<Obligation>(sortBy: [SortDescriptor(\.title)]))) ?? []).enumerated() {
+            // Paid this cycle: remind about next cycle's instead.
+            let after = bill.isPaidThisCycle ? max(today, cycle.end) : today
+            if let d = nextDate(day: bill.dueDay, after: after, calendar: cal), d <= horizon {
+                items.append(Due(id: "bill.\(i).\(bill.title.hashStable)", title: bill.title, amount: bill.amount, date: d))
             }
         }
-        let cycle = PayCycle.current(payday: AppSettings.payday, today: now)
-        for j in (try? context.fetch(FetchDescriptor<Jameya>())) ?? [] {
+        for (i, j) in ((try? context.fetch(FetchDescriptor<Jameya>(sortBy: [SortDescriptor(\.createdAt)]))) ?? []).enumerated() {
             let s = j.schedule
-            for r in 1...s.members {
+            for r in 1...s.members where !j.paidRounds.contains(r) {
                 let d = s.dueDate(round: r)
                 guard d >= today, d <= horizon else { continue }
-                if j.isPaid(in: cycle), d < cycle.end { continue }
-                items.append(Due(id: "jameya.\(j.persistentModelID.hashValue).\(r)", title: j.name, amount: j.share, date: d))
+                items.append(Due(id: "jameya.\(i).\(r)", title: j.name, amount: j.share, date: d))
             }
         }
         return items.sorted { $0.date < $1.date }
@@ -74,7 +75,8 @@ enum Reminders {
                         ? String(localized: "Due today: \(Theme.aed(item.amount))")
                         : String(localized: "Due in 2 days: \(Theme.aed(item.amount))")
                     content.sound = .default
-                    let comps = cal.dateComponents(in: cal.timeZone, from: fire)
+                    // Only these fields: a trigger with every component set (quarter, weekOfYear…) never fires.
+                    let comps = cal.dateComponents([.timeZone, .year, .month, .day, .hour, .minute], from: fire)
                     let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
                     try? await center.add(UNNotificationRequest(identifier: "\(prefix)\(item.id).\(before)",
                                                                 content: content, trigger: trigger))
@@ -95,5 +97,14 @@ enum Reminders {
             if let d = calendar.date(from: comps).map(calendar.startOfDay), d >= after { return d }
         }
         return nil
+    }
+}
+
+private extension String {
+    /// A short hash that stays the same between launches (String.hashValue doesn't).
+    var hashStable: String {
+        var h: UInt32 = 2166136261
+        for b in utf8 { h = (h ^ UInt32(b)) &* 16777619 }
+        return String(h, radix: 36)
     }
 }
