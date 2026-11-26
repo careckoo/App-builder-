@@ -16,6 +16,9 @@ struct BudgetsView: View {
     @State private var addingBill = false
     @State private var addingJameya = false
     @State private var addingGoal = false
+    @State private var editingBill: Obligation?
+    @State private var month: Planner.Month?
+    @State private var showFinished = false
 
     private var cycle: PayCycle { .current(payday: AppSettings.payday) }
 
@@ -31,6 +34,17 @@ struct BudgetsView: View {
     var body: some View {
         NavigationStack {
             List {
+                if let month {
+                    Section {
+                        YourMonthCard(month: month) {
+                            AppSettings.savingsGoal = month.extraForTarget
+                            refresh()
+                        }
+                    }
+                }
+
+                commitmentsSection
+
                 if !spentByCategory.isEmpty {
                     Section("This pay cycle") {
                         Chart(spentByCategory, id: \.0) { item in
@@ -41,17 +55,6 @@ struct BudgetsView: View {
                         }
                         .frame(height: 220)
                         .padding(.vertical, 8)
-                    }
-                }
-
-                Section {
-                    ForEach(jameyas) { j in
-                        NavigationLink { JameyaDetailView(jameya: j) } label: { JameyaRow(jameya: j) }
-                    }
-                    Button("Add a jameya", systemImage: "plus") { addingJameya = true }
-                } header: { Text("Jameya") } footer: {
-                    if jameyas.isEmpty {
-                        Text("In a jameya, everyone pays the same share each month and one person takes the whole pot. Khurda sets your share aside and tells you when it's your turn.")
                     }
                 }
 
@@ -71,31 +74,62 @@ struct BudgetsView: View {
                     Button("Add a budget", systemImage: "plus") { addingBudget = true }
                 } header: { Text("Budgets") }
 
-                Section {
-                    ForEach(obligations) { bill in
-                        HStack {
-                            Image(systemName: bill.isPaidThisCycle ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(bill.isPaidThisCycle ? Theme.relaxed : .secondary)
-                            VStack(alignment: .leading) {
-                                Text(bill.title)
-                                Text("Due on the \(bill.dueDay)").font(.caption).foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Text(Theme.aed(bill.amount)).monospacedDigit()
-                        }
-                    }
-                    .onDelete { $0.forEach { context.delete(obligations[$0]) } }
-                    Button("Add a fixed bill", systemImage: "plus") { addingBill = true }
-                } header: { Text("Fixed bills") } footer: {
-                    Text("Rent, school fees, DEWA or TAQA, Tabby and Tamara installments. They're set aside before your daily amount is worked out, and ticked off when the bank message arrives.")
-                }
             }
             .themedBackground()
             .navigationTitle("Plan")
             .sheet(isPresented: $addingBudget) { AddBudgetView() }
-            .sheet(isPresented: $addingBill) { AddBillView() }
-            .sheet(isPresented: $addingJameya) { JameyaEditor() }
-            .sheet(isPresented: $addingGoal) { GoalEditor() }
+            .sheet(isPresented: $addingBill, onDismiss: refresh) { CommitmentEditor() }
+            .sheet(item: $editingBill, onDismiss: refresh) { CommitmentEditor(bill: $0) }
+            .task(id: transactions.count + obligations.count + goals.count + jameyas.count) { refresh() }
+            .onAppear { refresh() }
+            .sheet(isPresented: $addingJameya, onDismiss: refresh) { JameyaEditor() }
+            .sheet(isPresented: $addingGoal, onDismiss: refresh) { GoalEditor() }
+        }
+    }
+}
+
+extension BudgetsView {
+    @MainActor private func refresh() { month = try? Planner(context: context).month() }
+
+    /// Commitments due this cycle and unpaid first, then paid, then the ones due later; finished at the end.
+    private var sortedBills: [Obligation] {
+        obligations.filter { !$0.isFinished }.sorted { a, b in
+            func rank(_ o: Obligation) -> Int { !o.isDue(in: cycle) ? 2 : o.isPaidThisCycle ? 1 : 0 }
+            if rank(a) != rank(b) { return rank(a) < rank(b) }
+            return (a.next() ?? .distantFuture) < (b.next() ?? .distantFuture)
+        }
+    }
+
+    @ViewBuilder var commitmentsSection: some View {
+        Section {
+            ForEach(sortedBills) { bill in
+                Button { editingBill = bill } label: { CommitmentRow(bill: bill, cycle: cycle) }
+            }
+            ForEach(jameyas) { j in
+                NavigationLink { JameyaDetailView(jameya: j) } label: { JameyaRow(jameya: j) }
+            }
+            Menu {
+                Button("Bill, rent or instalment", systemImage: "doc.text") { addingBill = true }
+                Button("Jameya", systemImage: "person.3.fill") { addingJameya = true }
+            } label: {
+                Label("Add a commitment", systemImage: "plus")
+            }
+            let finished = obligations.filter(\.isFinished)
+            if !finished.isEmpty {
+                DisclosureGroup("Finished (\(finished.count))", isExpanded: $showFinished) {
+                    ForEach(finished) { bill in
+                        Button { editingBill = bill } label: { CommitmentRow(bill: bill, cycle: cycle) }
+                    }
+                }
+            }
+        } header: {
+            HStack {
+                Text("Commitments")
+                Spacer()
+                if let month { Text("\(Theme.aed(month.commitmentsThisCycle)) this cycle").textCase(nil) }
+            }
+        } footer: {
+            Text("Rent, loans, school fees, DEWA, Tabby, a jameya… Set aside before your daily amount is worked out, and ticked off when the bank message arrives.")
         }
     }
 }

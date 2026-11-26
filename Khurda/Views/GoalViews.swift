@@ -28,9 +28,11 @@ struct GoalRow: View {
     }
 
     private var monthsLeftText: String {
-        let left = goal.target - goal.saved
-        let months = NSDecimalNumber(decimal: left / goal.monthly).doubleValue.rounded(.up)
-        let date = Calendar.dubai.date(byAdding: .month, value: Int(months), to: .now) ?? .now
+        if let d = goal.targetDate, d < .now {
+            return String(localized: "Date passed · \(Theme.aed(goal.target - goal.saved)) to go")
+        }
+        let date = GoalPlanner.finishDate(target: goal.target, saved: goal.saved, monthly: goal.monthly,
+                                          payday: AppSettings.payday, today: .now) ?? .now
         return String(localized: "there by \(date.formatted(.dateTime.month(.wide).year()))")
     }
 }
@@ -76,7 +78,29 @@ struct GoalEditor: View {
     @State private var target: Decimal = 5000
     @State private var monthly: Decimal = 500
     @State private var saved: Decimal = 0
+    @State private var byDate = true
+    @State private var deadline = Calendar.dubai.date(byAdding: .month, value: 12, to: .now)!
     @State private var loaded = false
+    @State private var month: Planner.Month?
+
+    private var today: Date { .now }
+    private var need: GoalPlanner.Need {
+        GoalPlanner.need(target: target, saved: saved, deadline: deadline, payday: AppSettings.payday, today: today)
+    }
+    /// The monthly amount this plan sets aside.
+    private var planMonthly: Decimal {
+        guard byDate else { return monthly }
+        if case let .monthly(m, _, _) = need { return m }
+        return 0
+    }
+    private var finish: Date? {
+        GoalPlanner.finishDate(target: target, saved: saved, monthly: monthly, payday: AppSettings.payday, today: today)
+    }
+    private var fit: GoalPlanner.Fit? {
+        guard let month, planMonthly > 0 else { return nil }
+        let room = month.room(excludingGoal: goal.map { $0.isReached ? 0 : $0.monthly } ?? 0)
+        return GoalPlanner.fit(monthly: planMonthly, room: room, target: target, saved: saved, payday: AppSettings.payday, today: today)
+    }
 
     var body: some View {
         NavigationStack {
@@ -92,8 +116,33 @@ struct GoalEditor: View {
                 Section {
                     TextField("Name (optional)", text: $name)
                     TextField("Target (AED)", value: $target, format: .number).keyboardType(.decimalPad)
-                    TextField("Set aside each month (AED)", value: $monthly, format: .number).keyboardType(.decimalPad)
                     TextField("Already saved (AED)", value: $saved, format: .number).keyboardType(.decimalPad)
+                }
+                Section {
+                    Picker("Plan by", selection: $byDate) {
+                        Text("Date").tag(true)
+                        Text("Monthly amount").tag(false)
+                    }
+                    .pickerStyle(.segmented)
+                    if byDate {
+                        DatePicker("Reach it by", selection: $deadline, in: Date.now..., displayedComponents: .date)
+                        switch need {
+                        case .reached: Label("Already reached", systemImage: "checkmark.seal.fill").foregroundStyle(Theme.relaxed)
+                        case .tooSoon(let now):
+                            Text("Too close for payday savings. You'd need \(Theme.aed(now)) now.").foregroundStyle(Theme.carefulText)
+                        case let .monthly(m, n, perDay):
+                            Text("Set aside \(Theme.aed(m)) a month (about \(Theme.aed(perDay)) a day) from \(n) paydays")
+                                .font(.headline)
+                        }
+                    } else {
+                        TextField("Set aside each month (AED)", value: $monthly, format: .number).keyboardType(.decimalPad)
+                        if let finish {
+                            Text("You'll reach it in \(finish.formatted(.dateTime.month(.wide).year()))").font(.headline)
+                        } else {
+                            Text("Add a monthly amount").foregroundStyle(.secondary)
+                        }
+                    }
+                    fitBanner
                 } footer: {
                     Text("From your next payday, the monthly amount comes off your salary before today's amount is worked out.")
                 }
@@ -105,22 +154,48 @@ struct GoalEditor: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(target <= 0) }
             }
             .onAppear {
+                month = try? Planner(context: context).month()
                 guard !loaded, let g = goal else { return }
                 loaded = true
                 name = g.name; target = g.target; monthly = g.monthly; saved = g.saved
+                byDate = g.planByDate && g.targetDate != nil
+                if let d = g.targetDate, d > .now { deadline = d }
             }
+        }
+    }
+
+    @ViewBuilder private var fitBanner: some View {
+        switch fit {
+        case .comfortable: Label("Fits your month", systemImage: "checkmark.circle").font(.callout).foregroundStyle(Theme.relaxed)
+        case .tight: Label("This fits, but leaves little spare each month.", systemImage: "exclamationmark.circle")
+                .font(.callout).foregroundStyle(Theme.carefulText)
+        case let .notAffordable(short, earliest):
+            VStack(alignment: .leading, spacing: 8) {
+                Label("That's \(Theme.aed(short)) a month more than you have spare.", systemImage: "exclamationmark.triangle")
+                    .font(.callout).foregroundStyle(Theme.over)
+                if let earliest {
+                    Button("Use \(earliest.formatted(.dateTime.month(.wide).year())) instead") {
+                        deadline = earliest; byDate = true
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+        case nil: EmptyView()
         }
     }
 
     private func save() {
         let typed = name.trimmingCharacters(in: .whitespaces)
+        let m = byDate ? planMonthly : monthly
+        let date = byDate ? deadline : finish
         if let g = goal {
             if !typed.isEmpty { g.name = typed }
-            g.target = target; g.monthly = monthly; g.saved = saved
+            g.target = target; g.monthly = m; g.saved = saved; g.targetDate = date; g.planByDate = byDate
         } else {
             let title = typed.isEmpty ? String(localized: preset.localizedTitleResource) : typed
-            let g = SavingsGoal(name: title, target: target, monthly: monthly, symbol: preset.symbol)
+            let g = SavingsGoal(name: title, target: target, monthly: m, symbol: preset.symbol, targetDate: date)
             g.saved = saved
+            g.planByDate = byDate
             context.insert(g)
         }
         try? context.save()

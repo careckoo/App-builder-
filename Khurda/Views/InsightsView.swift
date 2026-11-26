@@ -11,6 +11,8 @@ struct InsightsView: View {
     @State private var numbers: SafeToSpendCalculator.Numbers?
     @State private var safe: SafeToSpend?
     @State private var upcoming: [Reminders.Due] = []
+    @State private var month: Planner.Month?
+    @State private var importing = false
 
     private var cycle: PayCycle { numbers?.cycle ?? .current(payday: AppSettings.payday) }
 
@@ -27,6 +29,10 @@ struct InsightsView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     if let numbers { forecastCard(numbers) }
+                    if let month {
+                        usualCard(month)
+                        if !month.opportunities.isEmpty { waysToSaveCard(month) }
+                    }
                     weekCard
                     CalendarCard(cycle: cycle, totals: totals, allowance: safe?.dailyAllowance ?? 0)
                     categoriesCard
@@ -37,10 +43,12 @@ struct InsightsView: View {
             }
             .background(Theme.background)
             .navigationTitle("Insights")
+            .sheet(isPresented: $importing) { ImportStatementView() }
             .task(id: transactions.count) {
                 let calc = SafeToSpendCalculator(context: context)
                 numbers = try? calc.numbers()
                 safe = try? calc.current()
+                month = try? Planner(context: context).month()
                 upcoming = Reminders.upcoming(context: context).filter {
                     $0.date < Calendar.dubai.date(byAdding: .day, value: 14, to: .now)!
                 }
@@ -71,6 +79,87 @@ struct InsightsView: View {
                     Text("You spend about \(Theme.aed(f.dailyPace)) a day.").font(.subheadline).foregroundStyle(.secondary)
                 }
             }
+        }
+    }
+
+    private func catName(_ c: CategoryID) -> String { locale.language.languageCode == "ar" ? c.nameAR : c.nameEN }
+
+    /// What you usually spend a month, per category, with this cycle's pace for comparison.
+    private func usualCard(_ m: Planner.Month) -> some View {
+        let items = m.baseline.monthly.sorted { $0.value > $1.value }.prefix(7)
+        let top = items.first?.value ?? 1
+        let elapsed = max(1, (Calendar.dubai.dateComponents([.day], from: cycle.start, to: Calendar.dubai.startOfDay(for: .now)).day ?? 0) + 1)
+        return Card(title: "What you usually spend", symbol: "chart.bar.doc.horizontal") {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("\(Theme.aed(m.baseline.monthlyTotal)) a month · about \(Theme.aed(m.baseline.daily)) a day")
+                    .font(.headline)
+                ForEach(Array(items), id: \.key) { cat, value in
+                    let pace = transactions.filter { $0.isExpense && !$0.isFixedObligation && $0.date >= cycle.start && $0.category == cat }
+                        .reduce(Decimal(0)) { $0 + $1.amountAED } * BaselineCalculator.monthDays / Decimal(elapsed)
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack {
+                            Label(catName(cat), systemImage: cat.symbol).font(.subheadline)
+                            Spacer()
+                            Text(Theme.aed(value)).font(.subheadline).monospacedDigit()
+                        }
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(Theme.accent.opacity(0.75))
+                                    .frame(width: geo.size.width * min(1, CGFloat(NSDecimalNumber(decimal: value / top).doubleValue)))
+                                if elapsed >= 7 {
+                                    Rectangle().fill(pace > value * Decimal(string: "1.2")! ? Theme.over : Theme.textSecondary)
+                                        .frame(width: 2, height: 10)
+                                        .offset(x: geo.size.width * min(1, CGFloat(NSDecimalNumber(decimal: pace / top).doubleValue)))
+                                }
+                            }
+                        }
+                        .frame(height: 8)
+                    }
+                }
+                switch m.baseline.source {
+                case .typical:
+                    Text("Based on typical UAE spending until we see a full month of yours. Import a statement to make it yours now.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Button("Import a statement", systemImage: "square.and.arrow.down") { importing = true }.buttonStyle(.bordered)
+                case .blended:
+                    Text("Based on your months so far and typical UAE spending.").font(.footnote).foregroundStyle(.secondary)
+                case .history:
+                    Text("The middle of your last 3 months, big one-offs left out.").font(.footnote).foregroundStyle(.secondary)
+                }
+                if elapsed >= 7 {
+                    Text("The small line is this cycle's pace.").font(.caption2).foregroundStyle(.tertiary)
+                }
+            }
+        }
+    }
+
+    private func waysToSaveCard(_ m: Planner.Month) -> some View {
+        Card(title: "Ways to save", symbol: "leaf.fill") {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Up to \(Theme.aed(SavingsFinder.total(m.opportunities))) a month").font(.headline).foregroundStyle(Theme.relaxed)
+                ForEach(m.opportunities) { o in
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: o.category?.symbol ?? "building.columns").foregroundStyle(Theme.accent).frame(width: 22)
+                        Text(text(for: o)).font(.subheadline)
+                    }
+                }
+            }
+        }
+    }
+
+    private func text(for o: Opportunity) -> String {
+        let name = o.category.map(catName) ?? ""
+        switch o.kind {
+        case .aboveUsual(let pct):
+            return String(localized: "\(name) is \(pct)% above your usual this month · save \(Theme.aed(o.monthly)) a month")
+        case let .aboveTypical(typical, usual):
+            return String(localized: "You spend \(Theme.aed(usual)) a month on \(name); around \(Theme.aed(typical)) is typical. Trimming a quarter of the gap saves \(Theme.aed(o.monthly)).")
+        case let .smallRepeats(merchant, count):
+            return String(localized: "\(count) times at \(merchant) in a month · halve it to save \(Theme.aed(o.monthly))")
+        case .overlappingSubscriptions(let names):
+            return String(localized: "You pay for \(names.joined(separator: " + ")) · keep one, save \(Theme.aed(o.monthly))")
+        case .fees(let total):
+            return String(localized: "\(Theme.aed(total)) went on bank fees and charges this month")
         }
     }
 

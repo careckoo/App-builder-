@@ -28,15 +28,26 @@ enum DemoData {
         let cal = Calendar.dubai
         let cycle = PayCycle.current(payday: 27)
         let today = cal.startOfDay(for: .now)
+        let salaryAccount = Account(bankID: "adcb", type: .current, last4: "1234", nickname: "Salary")
+        salaryAccount.isSalaryAccount = true
+        let card = Account(bankID: "fab", type: .creditCard, last4: "4821", nickname: "Cashback card")
+        context.insert(salaryAccount); context.insert(card)
+        context.insert(IncomeSource(name: String(localized: "Salary"), amount: 18500, day: 27))
+        AppSettings.selectedBanks = ["adcb", "fab"]
+        AppSettings.defaults.set(true, forKey: "didMigrateAccounts")
+        let historyStart = cal.date(byAdding: .month, value: -2, to: cycle.start)!
         func add(_ merchant: String, _ amount: Decimal, _ cat: CategoryID, daysAgo: Int, hour: Int = 13,
                  kind: TransactionKind = .purchase, via: TransactionSource = .wallet) {
             let date = cal.date(byAdding: .hour, value: hour, to: cal.date(byAdding: .day, value: -daysAgo, to: today)!)!
-            guard date >= cycle.start else { return }
+            guard date >= historyStart else { return }
             let p = ParsedTransaction(amount: amount, kind: kind, merchant: merchant, cardLast4: "4821", date: date)
-            context.insert(Transaction(parsed: p, category: cat, amountAED: amount, source: nil, via: via))
+            let tx = Transaction(parsed: p, category: cat, amountAED: amount, source: nil, via: date < cycle.start ? .statement : via)
+            tx.accountID = kind == .income ? salaryAccount.id : card.id
+            context.insert(tx)
         }
-        let days = cal.dateComponents([.day], from: cycle.start, to: today).day ?? 0
-        add("Salary", 18500, .income, daysAgo: days, hour: 9, kind: .income, via: .sms)
+        let days = cal.dateComponents([.day], from: historyStart, to: today).day ?? 0
+        let sinceCycle = cal.dateComponents([.day], from: cycle.start, to: today).day ?? 0
+        add("Salary", 18500, .income, daysAgo: sinceCycle, hour: 9, kind: .income, via: .sms)
         for d in 0...days {
             if d % 2 == 0 { add("Starbucks", 24, .dining, daysAgo: d, hour: 8) }
             if d % 3 == 0 { add("Talabat", Decimal(45 + d % 4 * 12), .delivery, daysAgo: d, hour: 20) }
@@ -47,9 +58,19 @@ enum DemoData {
         add("VOX Cinemas", 110, .entertainment, daysAgo: 2, hour: 21)
         add("Zara", 260, .shopping, daysAgo: 0, hour: 17)
 
-        context.insert(Obligation(title: "Rent", amount: 6000, dueDay: 1, category: .family))
-        context.insert(Obligation(title: "DEWA", amount: 420, dueDay: 12, category: .bills))
-        context.insert(Obligation(title: "e&", amount: 299, dueDay: 20, category: .bills))
+        func commitment(_ title: String, _ amount: Decimal, _ type: CommitmentType, _ freq: Frequency, next: Date,
+                        instalments: Int = 0, varies: Bool = false, keyword: String = "") {
+            let o = Obligation(title: title, amount: amount, dueDay: cal.component(.day, from: next), category: type.category)
+            o.type = type; o.frequency = freq; o.firstDue = next; o.instalments = instalments
+            o.amountVaries = varies; o.matchKeyword = keyword
+            context.insert(o)
+        }
+        let nextMonth = cal.date(byAdding: .month, value: 1, to: cycle.start)!
+        commitment(String(localized: "Rent"), 18000, .rent, .everyMonths(3), next: cal.date(byAdding: .day, value: 40, to: cycle.start)!)
+        commitment("DEWA", 420, .utilities, .monthly, next: cal.date(byAdding: .day, value: 15, to: cycle.start)!, varies: true, keyword: "dewa")
+        commitment("e&", 299, .telecom, .monthly, next: cal.date(byAdding: .day, value: 23, to: cycle.start)!, keyword: "etisalat")
+        commitment(String(localized: "Car loan"), 1850, .carLoan, .monthly, next: cal.date(byAdding: .day, value: 8, to: cycle.start)!, instalments: 18)
+        commitment("Tabby · Noon", 112, .bnpl, .monthly, next: nextMonth, instalments: 3, keyword: "tabby")
         let firstMonth = cal.date(byAdding: .month, value: -2, to: today)!
         context.insert(Jameya(name: String(localized: "Work jameya"), share: 1000, members: 10, myTurn: 5,
                               firstMonth: firstMonth, dueDay: 27, organiser: "Umm Khalid"))

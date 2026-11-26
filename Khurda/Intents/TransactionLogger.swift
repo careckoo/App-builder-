@@ -105,12 +105,7 @@ struct TransactionLogger {
         let rate = AppSettings.fxToAED[currency] ?? 1
         let tx = Transaction(parsed: parsed, category: category, amountAED: amount * rate, source: nil, via: .manual)
         // Same as the automatic sources: paying a bill by hand ticks it off instead of counting twice.
-        if tx.isExpense, let bill = try matchingObligation(for: tx) {
-            bill.isPaidThisCycle = true
-            tx.isFixedObligation = true
-        } else {
-            try matchJameya(tx)
-        }
+        try matchCommitment(tx)
         context.insert(tx)
         try context.save()
         WidgetCenter.shared.reloadAllTimelines()
@@ -158,17 +153,17 @@ struct TransactionLogger {
             return .merged(existing)
         }
 
+        // Which of the person's accounts it is. Money arriving on a credit card is a card payment, not income.
+        var parsed = parsed
+        let account = try account(for: parsed, cardName: cardName)
+        if let account, account.type == .creditCard, parsed.kind == .income { parsed.kind = .cardPayment }
         let category = try categorizer().category(for: parsed)
         let tx = Transaction(parsed: parsed, category: category, amountAED: amountAED, source: original,
                              via: source, cardName: cardName)
+        tx.accountID = account?.id
 
-        // A payment that matches a bill (e.g. DEWA, school, Tabby) marks that bill paid instead of counting twice.
-        if tx.isExpense, let bill = try matchingObligation(for: tx) {
-            bill.isPaidThisCycle = true
-            tx.isFixedObligation = true
-        } else {
-            try matchJameya(tx)
-        }
+        // A payment that matches a commitment (DEWA, school, Tabby) marks it paid instead of counting twice.
+        try matchCommitment(tx)
 
         context.insert(tx)
         try context.save()
@@ -176,7 +171,7 @@ struct TransactionLogger {
         return .saved(tx, try SafeToSpendCalculator(context: context).current())
     }
 
-    private func categorizer() throws -> Categorizer {
+    func categorizer() throws -> Categorizer {
         let rules = try context.fetch(FetchDescriptor<MerchantRule>())
         let learned = Dictionary(rules.map { ($0.keyword, CategoryID(rawValue: $0.categoryRaw) ?? .other) },
                                  uniquingKeysWith: { a, _ in a })
@@ -217,16 +212,45 @@ struct TransactionLogger {
         }
     }
 
+    /// A commitment first (rent, DEWA, a loan), then a jameya share.
+    func matchCommitment(_ tx: Transaction) throws {
+        if tx.isExpense, let bill = try matchingObligation(for: tx) {
+            bill.setPaid(true)
+            tx.isFixedObligation = true
+            if tx.note.isEmpty, bill.title.caseInsensitiveCompare(tx.merchant) != .orderedSame { tx.note = bill.title }
+        } else {
+            try matchJameya(tx)
+        }
+    }
+
     private func matchingObligation(for tx: Transaction) throws -> Obligation? {
         // A pasted message from last cycle must not tick off this cycle's bill.
-        guard tx.date >= PayCycle.current(payday: AppSettings.payday).start else { return nil }
+        let cycle = PayCycle.current(payday: AppSettings.payday)
+        guard tx.date >= cycle.start else { return nil }
         let unpaid = try context.fetch(FetchDescriptor<Obligation>(predicate: #Predicate { !$0.isPaidThisCycle }))
-        return unpaid.first { bill in
-            let close = abs(NSDecimalNumber(decimal: bill.amount - tx.amountAED).doubleValue) <= max(5, NSDecimalNumber(decimal: bill.amount).doubleValue * 0.02)
-            let title = bill.title.trimmingCharacters(in: .whitespaces)
-            let named = !title.isEmpty && TextMatch.containsWord(tx.merchant, title)
-            return close && (bill.categoryRaw == tx.categoryRaw || named)
+            .filter { !$0.isFinished && ($0.accountID == nil || tx.accountID == nil || $0.accountID == tx.accountID) }
+        let candidates = unpaid.enumerated().map { i, bill in
+            // A monthly bill can be paid any day of the cycle; others near their due date.
+            let dues = bill.isMonthly ? [tx.date]
+                : bill.schedule.dues(from: tx.date.addingTimeInterval(-40 * 86_400), to: tx.date.addingTimeInterval(40 * 86_400)).map(\.date)
+            let keywords = bill.matchKeyword.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+                + (bill.matchKeyword.isEmpty ? bill.type.keywords : [])
+            return CommitmentMatcher.Candidate(id: i, title: bill.title, amount: bill.amount, amountVaries: bill.amountVaries,
+                                               category: bill.category, keywords: keywords, dueDates: dues)
         }
+        return CommitmentMatcher.match(amountAED: tx.amountAED, merchant: tx.merchant, category: tx.category,
+                                       date: tx.date, among: candidates).map { unpaid[$0] }
+    }
+
+    func account(for parsed: ParsedTransaction, cardName: String?) throws -> Account? {
+        let accounts = try context.fetch(FetchDescriptor<Account>()).filter { !$0.isArchived }
+        guard !accounts.isEmpty else { return nil }
+        var bank = parsed.bankName
+        if bank == nil, let cardName {
+            bank = accounts.first { !$0.nickname.isEmpty && cardName.localizedCaseInsensitiveContains($0.nickname) }?.bankName
+        }
+        let id = AccountMatcher.match(bankName: bank, ending: parsed.cardLast4, kind: parsed.kind, among: accounts.map(\.ref))
+        return accounts.first { $0.id.uuidString == id }
     }
 }
 
@@ -291,7 +315,8 @@ struct SafeToSpendCalculator {
 
         let obligations = try context.fetch(FetchDescriptor<Obligation>())
         let fixedPaid = txs.filter { $0.isFixedObligation }.reduce(Decimal(0)) { $0 + $1.amountAED }
-        let fixedUnpaid = obligations.filter { !$0.isPaidThisCycle }.reduce(Decimal(0)) { $0 + $1.amount }
+        // Each commitment due this cycle and not yet paid (quarterly rent only in the cycle it falls due).
+        let fixedUnpaid = obligations.reduce(Decimal(0)) { $0 + $1.reserve(in: cycle) }
         // Jameya shares due this cycle are set aside like bills, except rounds paid by a matched
         // transfer, which are already in `fixedPaid`.
         let jameyaUnpaid = try context.fetch(FetchDescriptor<Jameya>())

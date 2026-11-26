@@ -38,9 +38,11 @@ enum Reminders {
 
         let cycle = PayCycle.current(payday: AppSettings.payday, today: now)
         for (i, bill) in ((try? context.fetch(FetchDescriptor<Obligation>(sortBy: [SortDescriptor(\.title)]))) ?? []).enumerated() {
+            guard !bill.isFinished else { continue }
             // Paid this cycle: remind about next cycle's instead.
             let after = bill.isPaidThisCycle ? max(today, cycle.end) : today
-            if let d = nextDate(day: bill.dueDay, after: after, calendar: cal), d <= horizon {
+            let next = bill.firstDue == nil ? nextDate(day: bill.dueDay, after: after, calendar: cal) : bill.next(after: after)
+            if let d = next, d <= horizon {
                 items.append(Due(id: "bill.\(i).\(bill.title.hashStable)", title: bill.title, amount: bill.amount, date: d))
             }
         }

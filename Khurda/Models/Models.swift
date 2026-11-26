@@ -26,6 +26,10 @@ final class Transaction {
     var isFixedObligation: Bool = false
     /// `TransactionSource` raw value. Records saved before this field existed came from SMS.
     var sourceRaw: String = TransactionSource.sms.rawValue
+    /// The person's account or card it belongs to (`Account.id`), when Khurda could tell.
+    var accountID: UUID?
+    /// Set for rows imported from a statement, so the whole import can be undone.
+    var importBatchID: UUID?
 
     var kind: TransactionKind {
         get { TransactionKind(rawValue: kindRaw) ?? .purchase }
@@ -72,7 +76,8 @@ final class Budget {
     var category: CategoryID { CategoryID(rawValue: categoryRaw) ?? .other }
 }
 
-/// Rent, school fees, a Tabby installment: money already promised this cycle.
+/// A commitment: rent, a loan, school fees, DEWA, a Tabby plan… (a jameya has its own model).
+/// Records from before commitments had types are monthly, open-ended, on `dueDay`.
 @Model
 final class Obligation {
     var title: String = ""
@@ -80,8 +85,63 @@ final class Obligation {
     var dueDay: Int = 1
     var categoryRaw: String = CategoryID.bills.rawValue
     var isPaidThisCycle: Bool = false
+    var typeRaw: String = CommitmentType.other.rawValue
+    /// `Frequency.raw`: "m" monthly, "e3" every 3 months, "M9,1,4" given months, "o" once.
+    var frequencyRaw: String = "m"
+    /// The first (or next) payment. Nil for old records: monthly on `dueDay`.
+    var firstDue: Date?
+    /// 0 = open-ended; else the number of payments from `firstDue`.
+    var instalments: Int = 0
+    var paidCount: Int = 0
+    /// DEWA, phone: the amount is an estimate and a keyword must match.
+    var amountVaries: Bool = false
+    /// A word from the bank message ("DEWA", the landlord's name).
+    var matchKeyword: String = ""
+    var accountID: UUID?
+    var createdAt: Date = Date.now
+
     init(title: String, amount: Decimal, dueDay: Int, category: CategoryID) {
         self.title = title; self.amount = amount; self.dueDay = dueDay; categoryRaw = category.rawValue
+    }
+
+    var type: CommitmentType {
+        get { CommitmentType(rawValue: typeRaw) ?? .other }
+        set { typeRaw = newValue.rawValue }
+    }
+    var frequency: Frequency {
+        get { Frequency(raw: frequencyRaw) }
+        set { frequencyRaw = newValue.raw }
+    }
+    var category: CategoryID { CategoryID(rawValue: categoryRaw) ?? .other }
+
+    var schedule: CommitmentSchedule {
+        CommitmentSchedule(amount: amount, frequency: frequency, firstDue: firstDue ?? Self.anchor(day: dueDay),
+                           instalments: instalments)
+    }
+    /// For old monthly bills: any month far enough back that every month since has a due date.
+    static func anchor(day: Int) -> Date {
+        DateComponents(calendar: .dubai, timeZone: TimeZone(identifier: "Asia/Dubai"), year: 2024, month: 1, day: min(max(day, 1), 31)).date!
+    }
+    var isFinished: Bool { instalments > 0 && paidCount >= instalments }
+    var isMonthly: Bool { frequency == .monthly }
+
+    /// Payments due this cycle not yet made (a fixed plan's payments past `paidCount`).
+    func duesUnpaid(in cycle: PayCycle) -> Int {
+        guard !isFinished, !isPaidThisCycle else { return 0 }
+        if firstDue == nil { return 1 }   // old monthly bill: as before
+        return schedule.dues(from: cycle.start, to: cycle.end).filter { instalments == 0 || $0.index > paidCount }.count
+    }
+    func isDue(in cycle: PayCycle) -> Bool {
+        firstDue == nil || !schedule.dues(from: cycle.start, to: cycle.end).isEmpty
+    }
+    /// What to set aside this cycle.
+    func reserve(in cycle: PayCycle) -> Decimal { amount * Decimal(duesUnpaid(in: cycle)) }
+    func next(after date: Date = .now) -> Date? { schedule.next(onOrAfter: date)?.date }
+
+    func setPaid(_ paid: Bool) {
+        guard paid != isPaidThisCycle else { return }
+        isPaidThisCycle = paid
+        paidCount = max(0, paidCount + (paid ? 1 : -1))
     }
 }
 
@@ -158,6 +218,8 @@ final class SavingsGoal {
     /// aside; a goal created mid-cycle starts setting aside on the next payday.
     var lastCredit: Decimal = 0
     var lastCreditCycleStart: Date?
+    /// The person picked a date (the monthly amount follows) rather than a monthly amount.
+    var planByDate: Bool = false
 
     init(name: String, target: Decimal, monthly: Decimal, symbol: String = "star.fill", targetDate: Date? = nil) {
         self.name = name; self.target = target; self.monthly = monthly; self.symbol = symbol; self.targetDate = targetDate
@@ -207,6 +269,80 @@ final class UnreadMessage {
     init(text: String, sender: String?) { self.text = text; self.sender = sender }
 }
 
+/// A bank account or card the person has. Messages and statement rows are matched to one by the
+/// card's last digits and the bank. Only the last digits are kept, never a full number.
+@Model
+final class Account {
+    var id: UUID = UUID()
+    /// `BankDirectory` id, or "other".
+    var bankID: String = ""
+    var customBankName: String = ""
+    var nickname: String = ""
+    var typeRaw: String = AccountType.current.rawValue
+    var last4: String = ""
+    /// More endings, comma separated (a debit card on the account, a supplementary card).
+    var otherEndingsRaw: String = ""
+    var isSalaryAccount: Bool = false
+    var isArchived: Bool = false
+    var createdAt: Date = Date.now
+
+    init(bankID: String, type: AccountType, last4: String = "", nickname: String = "") {
+        self.bankID = bankID; typeRaw = type.rawValue; self.last4 = last4; self.nickname = nickname
+    }
+
+    var type: AccountType {
+        get { AccountType(rawValue: typeRaw) ?? .current }
+        set { typeRaw = newValue.rawValue }
+    }
+    var bank: Bank? { BankDirectory.all.first { $0.id == bankID } }
+    var bankName: String { bank?.nameEN ?? customBankName }
+    var endings: [String] {
+        ([last4] + otherEndingsRaw.split(separator: ",").map(String.init))
+            .compactMap(AccountMatcher.normalizeEnding)
+    }
+    var ref: AccountRef {
+        AccountRef(id: id.uuidString, bankName: bankName.isEmpty ? nil : bankName, type: type, endings: endings,
+                   isSalary: isSalaryAccount)
+    }
+    /// "Salary · ••1234", "ADCB ••1234", "FAB card".
+    func displayName(arabic: Bool) -> String {
+        let bankText = arabic ? (bank?.nameAR ?? customBankName) : bankName
+        let base = nickname.isEmpty ? bankText : nickname
+        return last4.isEmpty ? base : "\(base) ••\(last4)"
+    }
+}
+
+/// Salary, a housing allowance, rent from a flat, a pension… Regular ones count in the plan.
+@Model
+final class IncomeSource {
+    var name: String = ""
+    var amount: Decimal = 0
+    /// salary, allowance, rental, pension, business, support, other
+    var kindRaw: String = "salary"
+    var dayOfMonth: Int = 27
+    var isRegular: Bool = true
+    var accountID: UUID?
+    var createdAt: Date = Date.now
+    init(name: String, amount: Decimal, kind: String = "salary", day: Int) {
+        self.name = name; self.amount = amount; kindRaw = kind; dayOfMonth = day
+    }
+}
+
+/// One imported statement file, so the whole import can be undone.
+@Model
+final class ImportBatch {
+    var id: UUID = UUID()
+    var fileName: String = ""
+    var formatRaw: String = "csv"
+    var importedAt: Date = Date.now
+    var accountID: UUID?
+    var periodStart: Date = Date.now
+    var periodEnd: Date = Date.now
+    var added: Int = 0
+    var skippedDuplicates: Int = 0
+    init(fileName: String, format: String) { self.fileName = fileName; formatRaw = format }
+}
+
 /// When someone moves a merchant to another category, remember it.
 @Model
 final class MerchantRule {
@@ -235,6 +371,16 @@ enum AppSettings {
     static var savingsGoal: Decimal {
         get { Decimal(string: defaults.string(forKey: "savings") ?? "") ?? 0 }
         set { defaults.set("\(newValue)", forKey: "savings") }
+    }
+    /// Who's at home, for typical spending before Khurda has seen a month: single, couple, family.
+    static var household: Household {
+        get { Household(rawValue: defaults.string(forKey: "household") ?? "") ?? .single }
+        set { defaults.set(newValue.rawValue, forKey: "household") }
+    }
+    /// Nil = not asked.
+    static var ownsCar: Bool? {
+        get { defaults.object(forKey: "ownsCar") as? Bool }
+        set { if let v = newValue { defaults.set(v, forKey: "ownsCar") } else { defaults.removeObject(forKey: "ownsCar") } }
     }
     /// Rough rates for showing foreign purchases in AED. AED is pegged to USD at 3.6725.
     /// Built from strings: a Decimal from a float literal goes through Double and picks up binary noise.
@@ -285,7 +431,8 @@ enum CycleReset {
 /// CloudKit sync can be switched on later with `cloudKitDatabase: .private(...)`.
 enum Store {
     static let schema = Schema([Transaction.self, Budget.self, Obligation.self, MerchantRule.self,
-                                Jameya.self, SavingsGoal.self, LearnedTemplate.self, UnreadMessage.self])
+                                Jameya.self, SavingsGoal.self, LearnedTemplate.self, UnreadMessage.self,
+                                Account.self, IncomeSource.self, ImportBatch.self])
 
     static let container: ModelContainer = {
         // Without the App Group entitlement (a free Apple ID, or an unsigned build) SwiftData traps

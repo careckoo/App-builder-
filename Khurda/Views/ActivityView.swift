@@ -7,11 +7,16 @@ import KhurdaCore
 struct ActivityView: View {
     @Query(sort: \Transaction.date, order: .reverse) private var transactions: [Transaction]
     @Query private var unread: [UnreadMessage]
+    @Query(sort: \Account.createdAt) private var accounts: [Account]
+    @Environment(\.locale) private var locale
     @State private var search = ""
+    @State private var accountFilter: UUID?
+    @State private var importing = false
 
     private var filtered: [Transaction] {
-        guard !search.isEmpty else { return transactions }
-        return transactions.filter {
+        let byAccount = accountFilter.map { id in transactions.filter { $0.accountID == id } } ?? transactions
+        guard !search.isEmpty else { return byAccount }
+        return byAccount.filter {
             $0.merchant.localizedCaseInsensitiveContains(search)
                 || $0.category.nameEN.localizedCaseInsensitiveContains(search)
                 || $0.category.nameAR.contains(search)
@@ -52,6 +57,26 @@ struct ActivityView: View {
             .searchable(text: $search, prompt: "Search merchants or categories")
             .themedBackground()
             .navigationTitle("Activity")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Import", systemImage: "square.and.arrow.down") { importing = true }
+                }
+                if accounts.count > 1 {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Menu {
+                            Picker("Account", selection: $accountFilter) {
+                                Text("All accounts").tag(UUID?.none)
+                                ForEach(accounts) { a in
+                                    Label(a.displayName(arabic: locale.language.languageCode == "ar"), systemImage: a.type.symbol).tag(UUID?.some(a.id))
+                                }
+                            }
+                        } label: {
+                            Image(systemName: accountFilter == nil ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $importing) { ImportStatementView() }
             .overlay {
                 if transactions.isEmpty && unread.isEmpty {
                     ContentUnavailableView("Nothing yet", systemImage: "tray",
@@ -64,6 +89,7 @@ struct ActivityView: View {
 
 struct TransactionDetailView: View {
     @Bindable var tx: Transaction
+    @Query(sort: \Account.createdAt) private var accounts: [Account]
     @Environment(\.modelContext) private var context
     @Environment(\.locale) private var locale
     @Environment(\.dismiss) private var dismiss
@@ -77,6 +103,12 @@ struct TransactionDetailView: View {
                 TextField("Merchant", text: $tx.merchant)
                 if let card = cardText { LabeledContent("Card", value: card) }
                 if let bank = tx.bankName { LabeledContent("Bank", value: bank) }
+                if !accounts.isEmpty {
+                    Picker("Account", selection: $tx.accountID) {
+                        Text("Not set").tag(UUID?.none)
+                        ForEach(accounts) { Text($0.displayName(arabic: locale.language.languageCode == "ar")).tag(UUID?.some($0.id)) }
+                    }
+                }
                 LabeledContent("Date", value: tx.date.formatted(date: .abbreviated, time: .shortened))
                 LabeledContent("From") { Text(sourceLabel) }
             }

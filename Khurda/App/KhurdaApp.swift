@@ -20,6 +20,7 @@ struct KhurdaApp: App {
                 #if DEBUG
                 DemoData.seedIfNeeded(context: Store.container.mainContext)
                 #endif
+                if didFinishSetup { Incomes.migrateIfNeeded(context: Store.container.mainContext) }
                 CycleReset.runIfNeeded(context: Store.container.mainContext)
             }
         }

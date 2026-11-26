@@ -19,16 +19,33 @@ struct SetupFlowView: View {
                 salary.tag(1)
                 banks.tag(2)
                 ShortcutGuideView(banks: BankDirectory.all.filter { selectedBanks.contains($0.id) }) {
-                    AppSettings.monthlyIncome = income
-                    AppSettings.payday = payday
-                    AppSettings.savingsGoal = savings
-                    didFinishSetup = true
+                    finish()
                 }
                 .tag(3)
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
             .indexViewStyle(.page(backgroundDisplayMode: .always))
         }
+    }
+
+    @Environment(\.modelContext) private var context
+
+    /// Keeps what was entered: the salary as an income, each picked bank as an account.
+    private func finish() {
+        AppSettings.monthlyIncome = income
+        AppSettings.payday = payday
+        AppSettings.savingsGoal = savings
+        AppSettings.selectedBanks = BankDirectory.all.map(\.id).filter { selectedBanks.contains($0) }
+        if (try? context.fetchCount(FetchDescriptor<IncomeSource>())) == 0 {
+            context.insert(IncomeSource(name: String(localized: "Salary"), amount: income, day: payday))
+        }
+        let have = Set(((try? context.fetch(FetchDescriptor<Account>())) ?? []).map(\.bankID))
+        for id in AppSettings.selectedBanks where !have.contains(id) {
+            context.insert(Account(bankID: id, type: .current))
+        }
+        try? context.save()
+        AppSettings.defaults.set(true, forKey: "didMigrateAccounts")
+        didFinishSetup = true
     }
 
     private var welcome: some View {
@@ -178,36 +195,57 @@ struct ShortcutGuideView: View {
 }
 
 struct SettingsView: View {
-    @State private var income = AppSettings.monthlyIncome
+    @Environment(\.modelContext) private var context
+    @Query private var transactions: [Transaction]
+    @Query private var incomes: [IncomeSource]
+    @Query private var accounts: [Account]
     @State private var payday = AppSettings.payday
     @State private var savings = AppSettings.savingsGoal
-    @Query private var transactions: [Transaction]
+    @State private var income = AppSettings.monthlyIncome
+    @State private var importing = false
     @AppStorage("appearance", store: AppSettings.defaults) private var appearance = Appearance.light
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Salary") {
-                    TextField("Monthly salary (AED)", value: $income, format: .number).keyboardType(.numberPad)
-                        .onChange(of: income) { AppSettings.monthlyIncome = income }
+                Section {
+                    NavigationLink { IncomeListView() } label: {
+                        LabeledContent("Income", value: "\(Theme.aed(AppSettings.monthlyIncome)) / month")
+                    }
                     Picker("Payday", selection: $payday) { ForEach(1...31, id: \.self) { Text("\($0)").tag($0) } }
-                        .onChange(of: payday) { AppSettings.payday = payday }
-                    TextField("Save each month (AED)", value: $savings, format: .number).keyboardType(.numberPad)
-                        .onChange(of: savings) { AppSettings.savingsGoal = savings }
-                }
+                        .onChange(of: payday) {
+                            AppSettings.payday = payday
+                            // The salary's day is payday: keep them the same.
+                            incomes.first { $0.kindRaw == "salary" }?.dayOfMonth = payday
+                            try? context.save()
+                        }
+                    NavigationLink { AccountsView() } label: {
+                        LabeledContent("Accounts & cards", value: "\(accounts.filter { !$0.isArchived }.count)")
+                    }
+                    NavigationLink { HouseholdView() } label: { Text("Who's at home") }
+                    LabeledContent("Extra to save each month") {
+                        TextField("AED", value: $savings, format: .number).keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing).frame(maxWidth: 110)
+                            .onChange(of: savings) { AppSettings.savingsGoal = savings }
+                    }
+                } header: { Text("Your money") }
                 Section("Automatic tracking") {
-                    NavigationLink("Automatic tracking setup") { ShortcutGuideView(banks: BankDirectory.all) {} }
+                    NavigationLink("Automatic tracking setup") {
+                        ShortcutGuideView(banks: accountBanks) {}
+                    }
                     NavigationLink("Messages we couldn't read") { UnreadMessagesView() }
                     NavigationLink("Learned messages") { LearnedTemplatesView() }
+                }
+                Section("Data") {
+                    Button("Import a statement", systemImage: "square.and.arrow.down") { importing = true }
+                    NavigationLink { ImportHistoryView() } label: { Label("Past imports", systemImage: "clock.arrow.circlepath") }
+                    ShareLink(item: CSVExport.make(transactions), preview: SharePreview("khurda.csv")) {
+                        Label("Export to CSV", systemImage: "square.and.arrow.up")
+                    }
                 }
                 Section {
                     Picker("Appearance", selection: $appearance) {
                         ForEach(Appearance.allCases) { Text($0.title).tag($0) }
-                    }
-                }
-                Section {
-                    ShareLink(item: CSVExport.make(transactions), preview: SharePreview("khurda.csv")) {
-                        Label("Export to CSV", systemImage: "square.and.arrow.up")
                     }
                     Button("Language", systemImage: "globe") {
                         UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!)
@@ -218,7 +256,15 @@ struct SettingsView: View {
             }
             .themedBackground()
             .navigationTitle("Settings")
+            .sheet(isPresented: $importing) { ImportStatementView() }
+            .onAppear { payday = AppSettings.payday; savings = AppSettings.savingsGoal }
         }
+    }
+
+    private var accountBanks: [Bank] {
+        let ids = Set(accounts.map(\.bankID) + AppSettings.selectedBanks)
+        let banks = BankDirectory.all.filter { ids.contains($0.id) }
+        return banks.isEmpty ? BankDirectory.all : banks
     }
 }
 
