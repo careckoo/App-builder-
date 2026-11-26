@@ -114,7 +114,59 @@ final class StatementImportTests: XCTestCase {
         XCTAssertEqual(a.rows[2].balance, Decimal(string: "3467.60"))
     }
 
+    func testPDFLineWithoutBalanceKeepsNoBalance() throws {
+        let lines = [
+            "Account Statement",
+            "01/11/2026 Opening Balance 1,000.00",
+            "02/11/2026 POS SPINNEYS 100.00 900.00",
+            "03/11/2026 CAREEM RIDE 20.00",
+            "03/11/2026 TALABAT 30.00 850.00",
+            "04/11/2026 SALARY ACME 5,000.00 5,850.00"
+        ]
+        let a = try XCTUnwrap(StatementImporter.analyze(lines: lines))
+        XCTAssertEqual(a.rows.count, 4)
+        XCTAssertEqual(a.rows[1].amount, 20)
+        XCTAssertNil(a.rows[1].balance)   // the amount isn't its own balance
+        XCTAssertEqual(a.rows.map(\.kind), [.purchase, .purchase, .purchase, .income])
+    }
+
+    func testCardStatementWithSignedAmountsPositiveIsPurchase() throws {
+        let csv = """
+        Credit Card Statement
+        Date,Description,Amount
+        12/11/2026,NOON.COM,349.00
+        13/11/2026,CARREFOUR CITY CENTRE,120.00
+        15/11/2026,PAYMENT RECEIVED THANK YOU,-2000.00
+        """
+        let a = try XCTUnwrap(StatementImporter.analyze(table: SpreadsheetFiles.csv(csv)))
+        XCTAssertEqual(a.rows.map(\.kind), [.purchase, .purchase, .cardPayment])
+        XCTAssertEqual(a.moneyOut, 469)
+    }
+
+    func testCardPDFWithCreditMarkersAndOwedBalance() throws {
+        let lines = [
+            "CREDIT CARD STATEMENT", "Card Number 5123 XXXX XXXX 8871",
+            "10/11/2026 NOON.COM 349.00 1,349.00",
+            "12/11/2026 CARREFOUR 120.00 1,469.00",
+            "15/11/2026 PAYMENT THANK YOU 1,000.00 CR 469.00"
+        ]
+        let a = try XCTUnwrap(StatementImporter.analyze(lines: lines))
+        XCTAssertEqual(a.rows.map(\.kind), [.purchase, .purchase, .cardPayment])
+    }
+
+    func testMixedSignsWhereTheBalanceSaysPositiveIsOut() throws {
+        let csv = """
+        Date,Details,Amount,Balance
+        01/11/2026,LULU HYPERMARKET,150.00,850.00
+        02/11/2026,SALARY ACME,-3000.00,3850.00
+        03/11/2026,ENOC STATION,100.00,3750.00
+        """
+        let a = try XCTUnwrap(StatementImporter.analyze(table: SpreadsheetFiles.csv(csv)))
+        XCTAssertEqual(a.rows.map(\.kind), [.purchase, .income, .purchase])
+    }
+
     func testMoneyCells() {
+        XCTAssertEqual(Money.parse("123.45000000000001")?.value, Decimal(string: "123.45"))   // Excel float
         XCTAssertEqual(Money.parse("(45.50)")?.value, Decimal(string: "-45.5"))
         XCTAssertEqual(Money.parse("45.50 CR")?.marker, .credit)
         XCTAssertEqual(Money.parse("AED 1,250.00")?.value, 1250)
@@ -128,8 +180,13 @@ final class StatementImportTests: XCTestCase {
         let sms = CrossSourceDuplicate.Record(source: .sms, kind: .purchase, amount: 245, currency: "AED", amountAED: 245,
                                               date: day(2026, 11, 2).addingTimeInterval(15 * 3600), merchant: "CARREFOUR", cardLast4: "1234")
         XCTAssertTrue(StatementImporter.isDuplicate(row, amountAED: 245, of: [sms]))
+        XCTAssertEqual(StatementImporter.duplicateIndex(row, amountAED: 245, of: [other(sms, amount: 10), sms]), 1)
         var other = sms; other.cardLast4 = "9999"
         XCTAssertFalse(StatementImporter.isDuplicate(row, amountAED: 245, of: [other]))
+    }
+
+    private func other(_ r: CrossSourceDuplicate.Record, amount: Decimal) -> CrossSourceDuplicate.Record {
+        var r = r; r.amount = amount; r.amountAED = amount; return r
     }
 
     func testExcelWorkbook() throws {

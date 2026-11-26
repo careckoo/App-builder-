@@ -124,6 +124,8 @@ struct CommitmentEditor: View {
     @State private var accountID: UUID?
     @State private var loaded = false
     @State private var deleting = false
+    /// The schedule as loaded, to tell whether Save needs to re-anchor it.
+    @State private var loadedSchedule: CommitmentSchedule?
 
     private static let frequencies: [(LocalizedStringKey, (Set<Int>) -> Frequency)] = [
         ("Monthly", { _ in .monthly }), ("Every 3 months", { _ in .everyMonths(3) }), ("Every 4 months", { _ in .everyMonths(4) }),
@@ -149,7 +151,7 @@ struct CommitmentEditor: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }.disabled(amount <= 0)
+                    Button("Save") { save() }.disabled(amount <= 0 || (frequency == 5 && months.isEmpty))
                 }
             }
             .onAppear(perform: load)
@@ -208,8 +210,9 @@ struct CommitmentEditor: View {
 
     private var chosenFrequency: Frequency { Self.frequencies[frequency].1(months) }
     private var schedule: CommitmentSchedule {
-        CommitmentSchedule(amount: amount, frequency: chosenFrequency, firstDue: next,
-                           instalments: fixedCount ? left + (bill?.paidCount ?? 0) : 0)
+        // `next` is the first payment still to make, so `left` payments run from it (as saved).
+        CommitmentSchedule(amount: amount, frequency: chosenFrequency, firstDue: Calendar.dubai.startOfDay(for: next),
+                           instalments: fixedCount ? left : 0)
     }
 
     private func load() {
@@ -218,7 +221,10 @@ struct CommitmentEditor: View {
         if let b = bill {
             type = b.type; title = b.title; amount = b.amount; varies = b.amountVaries
             keyword = b.matchKeyword; accountID = b.accountID
-            next = b.next() ?? b.firstDue ?? Obligation.anchor(day: b.dueDay)
+            // The first payment still to make: this cycle's (even if its day has gone) unless it's paid.
+            let cycle = PayCycle.current(payday: AppSettings.payday)
+            next = b.next(after: b.isPaidThisCycle ? max(.now, cycle.end) : cycle.start)
+                ?? b.firstDue ?? Obligation.anchor(day: b.dueDay)
             fixedCount = b.instalments > 0
             left = max(1, b.instalments - b.paidCount)
             switch b.frequency {
@@ -231,6 +237,7 @@ struct CommitmentEditor: View {
             case .months(let m): frequency = 5; months = Set(m)
             case .once: frequency = 6
             }
+            loadedSchedule = schedule
         } else {
             applyDefaults()
         }
@@ -261,15 +268,22 @@ struct CommitmentEditor: View {
         b.type = type
         b.categoryRaw = type.category.rawValue
         b.amountVaries = varies
-        b.frequency = chosenFrequency
-        b.dueDay = cal.component(.day, from: next)
         b.matchKeyword = keyword.trimmingCharacters(in: .whitespaces)
         b.accountID = accountID
-        // Counted from the next payment: earlier ones are history.
-        b.firstDue = cal.startOfDay(for: next)
-        b.paidCount = 0
-        b.instalments = fixedCount ? left : 0
-        b.isPaidThisCycle = false
+        // A new schedule is counted from the next payment still to make: earlier ones are history.
+        // Renaming or a new amount keeps the schedule, and whether it's paid this cycle, as they were:
+        // un-ticking it would set this cycle's payment aside a second time.
+        let s = schedule
+        let changed = bill == nil || loadedSchedule.map {
+            $0.frequency != s.frequency || $0.firstDue != s.firstDue || $0.instalments != s.instalments
+        } ?? true
+        if changed {
+            b.frequency = chosenFrequency
+            b.dueDay = cal.component(.day, from: next)
+            b.firstDue = s.firstDue
+            b.paidCount = 0
+            b.instalments = s.instalments
+        }
         try? context.save()
         Reminders.requestAndReschedule(context: context)
         dismiss()

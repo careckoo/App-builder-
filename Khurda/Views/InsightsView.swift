@@ -13,6 +13,7 @@ struct InsightsView: View {
     @State private var upcoming: [Reminders.Due] = []
     @State private var month: Planner.Month?
     @State private var importing = false
+    @Environment(\.layoutDirection) private var direction
 
     private var cycle: PayCycle { numbers?.cycle ?? .current(payday: AppSettings.payday) }
 
@@ -109,7 +110,7 @@ struct InsightsView: View {
                                 if elapsed >= 7 {
                                     Rectangle().fill(pace > value * Decimal(string: "1.2")! ? Theme.over : Theme.textSecondary)
                                         .frame(width: 2, height: 10)
-                                        .offset(x: geo.size.width * min(1, CGFloat(NSDecimalNumber(decimal: pace / top).doubleValue)))
+                                        .offset(x: (direction == .rightToLeft ? -1 : 1) * geo.size.width * min(1, CGFloat(NSDecimalNumber(decimal: pace / top).doubleValue)))
                                 }
                             }
                         }

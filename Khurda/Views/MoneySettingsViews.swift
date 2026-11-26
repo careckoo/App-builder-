@@ -56,7 +56,7 @@ struct IncomeEditor: View {
 
     static let kinds: [(String, LocalizedStringKey)] = [
         ("salary", "Salary"), ("allowance", "Housing allowance"), ("rental", "Rent you receive"), ("pension", "Pension"),
-        ("business", "Business"), ("support", "Family support"), ("other", "Other")
+        ("business", "Business"), ("support", "Support from family"), ("other", "Other")
     ]
 
     var body: some View {
@@ -108,7 +108,7 @@ struct IncomeEditor: View {
 
     static func englishName(_ kind: String) -> String {
         ["salary": "Salary", "allowance": "Housing allowance", "rental": "Rent you receive", "pension": "Pension",
-         "business": "Business", "support": "Family support"][kind] ?? "Other"
+         "business": "Business", "support": "Support from family"][kind] ?? "Other"
     }
 }
 

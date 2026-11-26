@@ -142,6 +142,8 @@ struct ZipArchive {
         case 0: return Data(raw)
         case 8:
             guard e.size > 0 else { return Data() }
+            // The size comes from the file: don't let a broken or hostile one ask for gigabytes.
+            guard e.size <= 100_000_000 else { return nil }
             var out = [UInt8](repeating: 0, count: e.size)
             // COMPRESSION_ZLIB is raw DEFLATE, the same as ZIP's method 8.
             let n = compression_decode_buffer(&out, e.size, raw, raw.count, nil, COMPRESSION_ZLIB)

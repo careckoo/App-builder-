@@ -112,7 +112,10 @@ enum Incomes {
             for (key, list) in groups where list.count >= 2 {
                 let parts = key.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
                 guard let bank = BankDirectory.all.first(where: { $0.nameEN == parts[0] }) else { continue }
+                // A card payment seen on this ending makes it a card, unless salary or transfers land
+                // there too (that's the account the card is paid from): on a card, income becomes a card payment.
                 let isCard = list.contains { $0.kind == .cardPayment }
+                    && !list.contains { $0.kind == .income || $0.kind == .transferOut }
                 let a = Account(bankID: bank.id, type: isCard ? .creditCard : .current, last4: parts[1])
                 context.insert(a)
                 list.forEach { $0.accountID = a.id }

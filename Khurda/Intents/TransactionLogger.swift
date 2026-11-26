@@ -230,9 +230,11 @@ struct TransactionLogger {
         let unpaid = try context.fetch(FetchDescriptor<Obligation>(predicate: #Predicate { !$0.isPaidThisCycle }))
             .filter { !$0.isFinished && ($0.accountID == nil || tx.accountID == nil || $0.accountID == tx.accountID) }
         let candidates = unpaid.enumerated().map { i, bill in
-            // A monthly bill can be paid any day of the cycle; others near their due date.
-            let dues = bill.isMonthly ? [tx.date]
-                : bill.schedule.dues(from: tx.date.addingTimeInterval(-40 * 86_400), to: tx.date.addingTimeInterval(40 * 86_400)).map(\.date)
+            // A monthly bill due this cycle can be paid any day of it; otherwise near an unpaid due date
+            // (payments up to `paidCount` are already made, so an early payment isn't matched twice).
+            let dues = bill.isMonthly && bill.duesUnpaid(in: cycle) > 0 ? [tx.date]
+                : bill.schedule.dues(from: tx.date.addingTimeInterval(-40 * 86_400), to: tx.date.addingTimeInterval(40 * 86_400))
+                    .filter { $0.index > bill.paidCount }.map(\.date)
             let keywords = bill.matchKeyword.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
                 + (bill.matchKeyword.isEmpty ? bill.type.keywords : [])
             return CommitmentMatcher.Candidate(id: i, title: bill.title, amount: bill.amount, amountVaries: bill.amountVaries,

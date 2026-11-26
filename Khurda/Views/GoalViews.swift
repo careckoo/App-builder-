@@ -151,7 +151,7 @@ struct GoalEditor: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(target <= 0) }
+                ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(target <= 0 || (byDate && { if case .tooSoon = need { return true }; return false }())) }
             }
             .onAppear {
                 month = try? Planner(context: context).month()

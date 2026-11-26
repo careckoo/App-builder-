@@ -212,13 +212,18 @@ struct ImportStatementView: View {
         let categorizer = (try? logger.categorizer()) ?? Categorizer()
         let lo = (a.dateRange?.lowerBound ?? .now).addingTimeInterval(-3 * 86_400)
         let existing = ((try? context.fetch(FetchDescriptor<Transaction>(predicate: #Predicate { $0.date >= lo }))) ?? [])
-        let records = existing.map(\.record)
-        let fingerprints = Set(existing.map(\.fingerprint))
+        // Each existing transaction can stand for one row only: two same-price coffees on one day
+        // and one SMS means one of them is new.
+        var records = existing.map(\.record)
+        var fingerprints = existing.map(\.fingerprint)
         var seen: [String: Int] = [:]
         rows = a.rows.map { r in
             let aed = r.amount * (AppSettings.fxToAED[r.currency] ?? 1)
             let fp = Self.fingerprint(r, occurrence: &seen)
-            let dup = fingerprints.contains(fp) || StatementImporter.isDuplicate(r, amountAED: aed, of: records)
+            var dup = false
+            if let i = fingerprints.firstIndex(of: fp) ?? StatementImporter.duplicateIndex(r, amountAED: aed, of: records) {
+                records.remove(at: i); fingerprints.remove(at: i); dup = true
+            }
             return ReviewRow(row: r, category: categorizer.category(for: r.parsed), include: !dup, duplicate: dup)
         }
     }
@@ -265,10 +270,11 @@ struct ImportStatementView: View {
             added += 1
         }
         batch.added = added
-        batch.skippedDuplicates = rows.filter(\.duplicate).count
+        // "Skipped N you already had": duplicates left out, not rows the person unticked.
+        batch.skippedDuplicates = rows.filter { $0.duplicate && !$0.include }.count
         try? context.save()
         WidgetCenter.shared.reloadAllTimelines()
-        result = (added, rows.count - added)
+        result = (added, batch.skippedDuplicates)
         step = .done
     }
 }

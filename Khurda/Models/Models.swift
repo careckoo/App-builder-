@@ -125,18 +125,26 @@ final class Obligation {
     var isFinished: Bool { instalments > 0 && paidCount >= instalments }
     var isMonthly: Bool { frequency == .monthly }
 
-    /// Payments due this cycle not yet made (a fixed plan's payments past `paidCount`).
+    /// Payments due this cycle not yet made. `firstDue` is the first payment still to make when the
+    /// commitment was saved and `paidCount` counts payments since, so a payment index at or below
+    /// `paidCount` is already paid (quarterly rent paid a few days early, in the cycle before).
     func duesUnpaid(in cycle: PayCycle) -> Int {
         guard !isFinished, !isPaidThisCycle else { return 0 }
         if firstDue == nil { return 1 }   // old monthly bill: as before
-        return schedule.dues(from: cycle.start, to: cycle.end).filter { instalments == 0 || $0.index > paidCount }.count
+        return schedule.dues(from: cycle.start, to: cycle.end).filter { $0.index > paidCount }.count
     }
     func isDue(in cycle: PayCycle) -> Bool {
         firstDue == nil || !schedule.dues(from: cycle.start, to: cycle.end).isEmpty
     }
     /// What to set aside this cycle.
     func reserve(in cycle: PayCycle) -> Decimal { amount * Decimal(duesUnpaid(in: cycle)) }
-    func next(after date: Date = .now) -> Date? { schedule.next(onOrAfter: date)?.date }
+    /// The next payment still to make on or after `date` (one paid early is skipped).
+    func next(after date: Date = .now) -> Date? {
+        let s = schedule
+        guard let n = s.next(onOrAfter: date) else { return nil }
+        if firstDue == nil || n.index > paidCount { return n.date }
+        return s.dueDate(index: paidCount + 1)
+    }
 
     func setPaid(_ paid: Bool) {
         guard paid != isPaidThisCycle else { return }
@@ -401,7 +409,11 @@ enum CycleReset {
         let current = PayCycle.current(payday: AppSettings.payday, today: now)
         let last = AppSettings.defaults.object(forKey: key) as? Date
         guard last != current.start else { return }
-        (try? context.fetch(FetchDescriptor<Obligation>()))?.forEach { $0.isPaidThisCycle = false }
+        // A new cycle unticks the bills. Moving payday later puts today back in a cycle that started
+        // earlier: the bills paid in it stay paid (their payments still count in it).
+        if last.map({ $0 < current.start }) ?? true {
+            (try? context.fetch(FetchDescriptor<Obligation>()))?.forEach { $0.isPaidThisCycle = false }
+        }
         // Each payday sets aside each goal's monthly amount. Count every payday since the app last
         // ran (not just one), and only when a cycle was seen before, so the first launch credits nothing.
         if let last, last < current.start {

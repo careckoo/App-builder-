@@ -119,7 +119,23 @@ public enum StatementImporter {
             }
         }
 
+        // No Dr/Cr anywhere: the direction came from the signs, the balance or the words.
         let card = looksLikeCardStatement(headerText)
+        let explicit = columns[.debit] != nil || columns[.credit] != nil || columns[.direction] != nil
+            || body.contains { r in columns[.amount].flatMap { r[safe: $0] }.flatMap(Money.parse)?.marker != nil }
+        if !explicit, !card, !singleUnsigned {
+            // Mixed signs: negative is out, unless the running balance says this bank writes it the other way.
+            let signs = balanceSigns(raws.map { ($0.amount, $0.balance) })
+            var agree = 0, disagree = 0
+            for i in raws.indices { if let s = signs[i] { if s == ((raws[i].signed ?? -1) > 0) { agree += 1 } else { disagree += 1 } } }
+            if disagree > agree { for i in raws.indices { raws[i].signed = -(raws[i].signed ?? -raws[i].amount) } }
+        }
+        if !explicit, card, raws.filter({ ($0.signed ?? -1) > 0 }).count * 2 > raws.count {
+            // A card statement is mostly purchases, and its balance is what's owed (a purchase makes it
+            // go up): when most rows came out as money in, the file has it the other way round.
+            for i in raws.indices { raws[i].signed = -(raws[i].signed ?? -raws[i].amount) }
+        }
+
         let currency = columns[.currency] == nil ? (detectCurrency(headerText) ?? "AED") : "AED"
         let rows = raws.map { r -> StatementRow in
             let cur = columns[.currency].flatMap { body[r.index][safe: $0] }.flatMap(currencyCode) ?? currency
@@ -173,22 +189,32 @@ public enum StatementImporter {
 
         // Two or more amounts: the last is the balance. Its change says which way the money went.
         let hasBalance = raws.filter { $0.amounts.count >= 2 }.count * 2 > raws.count
-        let pairs: [(Decimal, Decimal?)] = raws.map { r in
-            let amount = hasBalance && r.amounts.count >= 2 ? r.amounts[r.amounts.count - 2] : r.amounts[0]
-            return (abs(amount.value), hasBalance ? r.amounts.last?.value : nil)
-        }
+        // A line with one amount has no balance on it (the amount isn't its own balance).
+        func amount(_ r: Raw) -> Money { hasBalance && r.amounts.count >= 2 ? r.amounts[r.amounts.count - 2] : r.amounts[0] }
+        func balance(_ r: Raw) -> Decimal? { hasBalance && r.amounts.count >= 2 ? r.amounts.last?.value : nil }
+        let pairs: [(Decimal, Decimal?)] = raws.map { (abs(amount($0).value), balance($0)) }
         let signs = balanceSigns(pairs, opening: opening)
         let card = looksLikeCardStatement(headerText)
         let currency = detectCurrency(headerText) ?? "AED"
+        // Some lines say CR (or DR) and the rest say nothing: the unmarked ones go the other way.
+        let markers = Set(raws.compactMap { amount($0).marker })
+        var directions: [Bool?] = raws.enumerated().map { i, r in
+            let a = amount(r)
+            guard a.value != 0 else { return nil }
+            if a.marker != nil || a.value < 0 { return a.marker == .credit || (a.marker == nil && a.value > 0) }
+            if markers.count == 1, let only = markers.first { return only == .debit }
+            return signs[i] ?? wordsSayMoneyIn(r.details)
+        }
+        // A card statement is mostly purchases and its balance is what's owed: when most unmarked
+        // lines came out as money in, they're the other way round.
+        let unmarked = raws.indices.filter { amount(raws[$0]).marker == nil && directions[$0] != nil }
+        if card, markers.isEmpty, unmarked.filter({ directions[$0] == true }).count * 2 > unmarked.count {
+            for i in unmarked { directions[i] = !(directions[i] ?? false) }
+        }
         let rows = raws.enumerated().compactMap { i, r -> StatementRow? in
-            let amount = hasBalance && r.amounts.count >= 2 ? r.amounts[r.amounts.count - 2] : r.amounts[0]
-            guard amount.value != 0 else { return nil }
-            let moneyIn: Bool
-            if amount.marker != nil || amount.value < 0 { moneyIn = amount.marker == .credit || (amount.marker == nil && amount.value > 0) }
-            else if let s = signs[i] { moneyIn = s }
-            else { moneyIn = wordsSayMoneyIn(r.details) }
-            return makeRow(id: i, date: r.date, details: r.details, amount: abs(amount.value), moneyIn: moneyIn,
-                           balance: hasBalance ? r.amounts.last?.value : nil, currency: currency, card: card)
+            guard let moneyIn = directions[i] else { return nil }
+            return makeRow(id: i, date: r.date, details: r.details, amount: abs(amount(r).value), moneyIn: moneyIn,
+                           balance: balance(r), currency: currency, card: card)
         }
         return StatementAnalysis(rows: rows, columns: [:], dateFormat: format, skipped: skipped,
                                  bankName: bankName(in: headerText),
@@ -200,7 +226,13 @@ public enum StatementImporter {
     /// The same transaction already logged from an SMS, email or an earlier import: same AED amount,
     /// same direction, within a day (statements show the posting date), and a similar name if both have one.
     public static func isDuplicate(_ row: StatementRow, amountAED: Decimal, of existing: [CrossSourceDuplicate.Record]) -> Bool {
-        existing.contains { e in
+        duplicateIndex(row, amountAED: amountAED, of: existing) != nil
+    }
+
+    /// Which existing record this row repeats. Remove it before checking the next row, so two
+    /// coffees of the same price on the same day don't both match the one SMS.
+    public static func duplicateIndex(_ row: StatementRow, amountAED: Decimal, of existing: [CrossSourceDuplicate.Record]) -> Int? {
+        existing.firstIndex { e in
             let sameDirection = (e.kind == .income || e.kind == .refund) == (row.kind == .income || row.kind == .refund)
             let close = abs(e.date.timeIntervalSince(row.date)) <= 36 * 3600
             let sameMoney = e.amountAED == amountAED || (e.currency == row.currency && e.amount == row.amount)
@@ -523,7 +555,10 @@ public struct Money: Sendable, Equatable {
         s = s.filter { $0.isNumber || $0 == "." || $0 == "," }
         // A whole cell must be a number: "Card 1234" or a phone number isn't money.
         let leftover = BankMessageParser.normalize(raw).replacingOccurrences(of: #"(?i)\b(aed|dhs?|usd|sar|eur|gbp|cr|dr)\b|درهم|د\.إ|دائن|مدين|[0-9.,()+\-−\s]"#, with: "", options: .regularExpression)
-        guard !s.isEmpty, leftover.isEmpty, s.contains(where: \.isNumber), let v = AmountText.number(s) else { return nil }
+        guard !s.isEmpty, leftover.isEmpty, s.contains(where: \.isNumber), var v = AmountText.number(s) else { return nil }
+        // Excel keeps money as a binary float ("123.45000000000001"); 3 places keeps fils (and KWD/BHD).
+        var exact = v
+        NSDecimalRound(&v, &exact, 3, .plain)
         return Money(value: negative ? -v : v, marker: marker)
     }
 }

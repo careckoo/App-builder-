@@ -197,7 +197,7 @@ struct ShortcutGuideView: View {
 struct SettingsView: View {
     @Environment(\.modelContext) private var context
     @Query private var transactions: [Transaction]
-    @Query private var incomes: [IncomeSource]
+    @Query(sort: \IncomeSource.createdAt) private var incomes: [IncomeSource]
     @Query private var accounts: [Account]
     @State private var payday = AppSettings.payday
     @State private var savings = AppSettings.savingsGoal
